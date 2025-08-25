@@ -1,0 +1,67 @@
+services:
+  backend:
+    container_name: jobstack-backend-c
+    image: jobstack-backend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '${BACKEND_PORT}:${BACKEND_PORT}'
+    environment:
+      APP_NAME: ${APP_NAME}
+      SERVER_ENDPOINT: ${SERVER_ENDPOINT}
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${DATABASE_PORT}/postgresdb
+      REDIS_URL: ${REDIS_URL}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      SMTP_AWS_SES: ${SMTP_AWS_SES}
+      AWS_REGION: ${AWS_REGION}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      SMTP_GMAIL: ${SMTP_GMAIL}
+      GMAIL_USER: ${GMAIL_USER}
+      GMAIL_PASS: ${GMAIL_PASS}
+      MAIL_LOG: 'true'
+      NODE_ENV: ${NODE_ENV}
+      GCP_PROJECT_ID: ${GCP_PROJECT_ID}
+      STORAGE_BASE_URL: ${STORAGE_BASE_URL}
+      MSG91_AUTH_KEY: ${MSG91_AUTH_KEY}
+      MSG91_TEMPLATE_ID: ${MSG91_TEMPLATE_ID}
+    volumes:
+      - ./credentials/gcp:/app/credentials/gcp:ro
+    depends_on:
+      - db
+      - redis
+    networks:
+      - jobstack-network-c
+  db:
+    image: postgres:16-alpine
+    container_name: postgres-db
+    ports:
+      - '${DATABASE_PORT}:${DATABASE_PORT}'
+    environment:
+      POSTGRES_USER: 'postgresdb'
+      POSTGRES_PASSWORD: 'mypassword'
+      POSTGRES_DB: 'postgresdb'
+    volumes:
+      - auth-service-db:/var/lib/postgresql/data
+    networks:
+      - jobstack-network-c
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    networks:
+      - jobstack-network-c
+networks:
+  jobstack-network-c:
+    name: jobstack-network-c
+    internal: false
+volumes:
+  auth-service-db:
+    name: jobstack-backend-db
+  redis-data:
+    name: jobstack-redis-db

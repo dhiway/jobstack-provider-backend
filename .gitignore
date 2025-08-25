@@ -1,0 +1,10 @@
+v10/
+drizzle/
+credentials/
+node_modules
+dist
+.env
+.env.local
+.env.demo
+.DS_Store
+
