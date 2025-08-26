@@ -51,8 +51,8 @@ async function main() {
   await app.register(fastifySwagger, {
     openapi: {
       info: {
-        title: 'Jobstack API',
-        description: ' Jobstack API Service',
+        title: 'Jobstack Provider API',
+        description: ' Jobstack Provider API Service',
         version: '1.0.0',
       },
       servers: [
@@ -97,8 +97,11 @@ async function main() {
   await app.register(v1Routes, { prefix: '/api/v1' });
   await app.register(AuthRoutes);
 
+  const env_port = parseInt(process.env.BACKEND_PORT || '3001');
+  const env = isNaN(env_port) ? 3001 : env_port;
+
   await app.listen({
-    port: 3001,
+    port: env,
     host: '0.0.0.0',
   });
 

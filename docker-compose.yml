@@ -1,7 +1,7 @@
 services:
   backend:
-    container_name: jobstack-backend-c
-    image: jobstack-backend:latest
+    container_name: jobstack-provider-backend-c
+    image: jobstack-provider-backend:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -21,7 +21,7 @@ services:
       SMTP_GMAIL: ${SMTP_GMAIL}
       GMAIL_USER: ${GMAIL_USER}
       GMAIL_PASS: ${GMAIL_PASS}
-      MAIL_LOG: 'true'
+      MAIL_LOG: ${MAIL_LOG}
       NODE_ENV: ${NODE_ENV}
       GCP_PROJECT_ID: ${GCP_PROJECT_ID}
       STORAGE_BASE_URL: ${STORAGE_BASE_URL}
@@ -33,7 +33,7 @@ services:
       - db
       - redis
     networks:
-      - jobstack-network-c
+      - jobstack-provider-network-c
   db:
     image: postgres:16-alpine
     container_name: postgres-db
@@ -44,24 +44,24 @@ services:
       POSTGRES_PASSWORD: 'mypassword'
       POSTGRES_DB: 'postgresdb'
     volumes:
-      - auth-service-db:/var/lib/postgresql/data
+      - jobstack-provider-db:/var/lib/postgresql/data
     networks:
-      - jobstack-network-c
+      - jobstack-provider-network-c
   redis:
     image: redis:7.2-alpine
     container_name: redis
     ports:
       - '6379:6379'
     volumes:
-      - redis-data:/data
+      - jobstack-provider-redis:/data
     networks:
-      - jobstack-network-c
+      - jobstack-provider-network-c
 networks:
-  jobstack-network-c:
-    name: jobstack-network-c
+  jobstack-provider-network-c:
+    name: jobstack-provider-network-c
     internal: false
 volumes:
-  auth-service-db:
-    name: jobstack-backend-db
-  redis-data:
-    name: jobstack-redis-db
+  jobstack-provider-db:
+    name: jobstack-provider-db
+  jobstack-provider-redis:
+    name: jobstack-provider-redis
