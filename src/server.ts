@@ -6,7 +6,6 @@ import {
   validatorCompiler,
 } from 'fastify-type-provider-zod';
 import formDataPlugin from '@fastify/formbody';
-import { drizzle } from 'drizzle-orm/node-postgres';
 import v1Routes from '@routes/v1';
 import fastifySwagger from '@fastify/swagger';
 import 'dotenv';
@@ -15,11 +14,8 @@ import redis from '@lib/redis';
 import AuthRoutes from '@routes/auth';
 import HomepageRoute from '@routes/home';
 
-declare module 'fastify' {
-  interface FastifyInstance {
-    db: ReturnType<typeof drizzle>;
-  }
-}
+const env_port = parseInt(process.env.BACKEND_PORT || '3001');
+const port = isNaN(env_port) ? 3001 : env_port;
 
 async function main() {
   const app = Fastify({ logger: true, trustProxy: true });
@@ -57,7 +53,7 @@ async function main() {
       },
       servers: [
         {
-          url: 'http://localhost:3001',
+          url: `http://localhost:${port}`,
           description: 'Local development server',
         },
         /* { */
@@ -97,11 +93,8 @@ async function main() {
   await app.register(v1Routes, { prefix: '/api/v1' });
   await app.register(AuthRoutes);
 
-  const env_port = parseInt(process.env.BACKEND_PORT || '3001');
-  const env = isNaN(env_port) ? 3001 : env_port;
-
   await app.listen({
-    port: env,
+    port: port,
     host: '0.0.0.0',
   });
 
