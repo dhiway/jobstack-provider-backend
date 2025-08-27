@@ -18,8 +18,10 @@ const env_port = parseInt(process.env.BACKEND_PORT || '3001');
 const port = isNaN(env_port) ? 3001 : env_port;
 
 async function main() {
-  const app = Fastify({ logger: true, trustProxy: true });
-
+  const app = Fastify({
+    logger: { file: '/home/logs/app.log', level: 'debug' },
+    trustProxy: true,
+  });
   // Zod Validation Compiler Setup
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);

@@ -27,8 +27,10 @@ services:
       STORAGE_BASE_URL: ${STORAGE_BASE_URL}
       MSG91_AUTH_KEY: ${MSG91_AUTH_KEY}
       MSG91_TEMPLATE_ID: ${MSG91_TEMPLATE_ID}
+      LOG_ACTIVITY: ${LOG_ACTIVITY}
     volumes:
       - ./credentials/gcp:/app/credentials/gcp:ro
+      - ./logs:/home/logs
     depends_on:
       - db
       - redis
