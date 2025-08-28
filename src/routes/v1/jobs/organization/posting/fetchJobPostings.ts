@@ -83,6 +83,13 @@ export async function getJobPostings(
     .limit(limit)
     .offset(offset);
 
+  const [{ totalCount }] = await db
+    .select({
+      totalCount: sql<number>`cast(count(*) as int)`,
+    })
+    .from(jobPosting)
+    .where(eq(jobPosting.organizationId, organizationId));
+
   return reply.send({
     statusCode: 200,
     message: 'Job postings fetched successfully',
@@ -91,6 +98,7 @@ export async function getJobPostings(
       pagination: {
         page,
         limit,
+        totalCount,
       },
     },
   });

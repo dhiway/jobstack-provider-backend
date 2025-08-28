@@ -89,6 +89,7 @@ export const ProfilePaginationQuerySchema = z.object({
 export const PaginationSchema = z.object({
   page: z.number(),
   limit: z.number(),
+  totalCount: z.number(),
 });
 
 // profile success response
