@@ -11,7 +11,7 @@ export async function getJobPostings(
   request: FastifyRequest<{ Body: BecknSearchBodySchema }>,
   reply: FastifyReply
 ) {
-  const body = SearchRequestSchema.parse(request.body);
+  const body = request.body;
   const { intent } = body.message;
 
   const page = body.pagination.page || 1;
@@ -100,7 +100,6 @@ export async function getJobPostings(
       if (code === 'status' && value) {
         whereConditions.push(sql`${jobPosting.status} = ${value}`);
       }
-
     });
   });
 
@@ -113,7 +112,17 @@ export async function getJobPostings(
   }
 
   const jobs = await db
-    .select()
+    .select({
+      id: jobPosting.id,
+      title: jobPosting.title,
+      organizationId: jobPosting.organizationId,
+      organizationName: jobPosting.organizationName,
+      location: jobPosting.location,
+      metadata: jobPosting.metadata,
+      status: jobPosting.status,
+      createdAt: jobPosting.createdAt,
+      totalCount: sql<number>`count(*) OVER()`.as('total_count'),
+    })
     .from(jobPosting)
     .where(and(...whereConditions))
     .orderBy(desc(jobPosting.createdAt))
@@ -186,8 +195,8 @@ export async function getJobPostings(
   }
 
   const providers = Array.from(providersMap.values());
+  const totalCount = jobs.length > 0 ? Number(jobs[0].totalCount) : 0;
 
-  // ✅ Build Beckn-compliant response
   const response = {
     message: {
       catalog: {
@@ -196,6 +205,11 @@ export async function getJobPostings(
         },
         providers,
       },
+    },
+    pagination: {
+      page,
+      limit,
+      totalCount,
     },
   };
   return reply.send(response);
