@@ -1,6 +1,6 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import * as z from 'zod/v4';
-import { eq, and, asc, desc, ne } from 'drizzle-orm';
+import { eq, and, asc, desc, ne, sql } from 'drizzle-orm';
 import { jobApplication, jobPosting } from '@db/schema/job';
 import { db } from '@db/setup';
 import { member, organization } from '@db/schema/auth';
@@ -100,6 +100,14 @@ export async function getJobApplications(
     .limit(limit)
     .offset(offset);
 
+  const [{ totalCount }] = await db
+    .select({
+      totalCount: sql<number>`cast(count(*) as int)`,
+    })
+    .from(jobApplication)
+    .innerJoin(jobPosting, eq(jobApplication.jobId, jobPosting.id))
+    .where(and(...whereConditions));
+
   return reply.send({
     statusCode: 200,
     message: 'Job applications fetched successfully',
@@ -108,6 +116,7 @@ export async function getJobApplications(
       pagination: {
         page,
         limit,
+        totalCount,
       },
     },
   });
