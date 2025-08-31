@@ -38,7 +38,7 @@ services:
       - jobstack-provider-network-c
   db:
     image: postgres:16-alpine
-    container_name: postgres-db
+    container_name: jobstack-provider-db
     ports:
       - '${DATABASE_PORT}:${DATABASE_PORT}'
     environment:
