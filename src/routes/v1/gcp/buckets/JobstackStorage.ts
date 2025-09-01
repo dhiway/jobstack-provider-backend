@@ -14,13 +14,10 @@ const keyFilePath = path.resolve(
   process.cwd(),
   'credentials/gcp/gcp-service-account.json'
 );
-const {
-  PROJECT_ID = 'velvety-calling-462806-n3',
-  STORAGE_BASE_URL = 'https://storage.googleapis.com',
-} = process.env;
+const { GCP_PROJECT_ID, STORAGE_BASE_URL } = process.env;
 
 export const storage = new Storage({
-  projectId: PROJECT_ID,
+  projectId: GCP_PROJECT_ID,
   keyFilename: keyFilePath,
 });
 
