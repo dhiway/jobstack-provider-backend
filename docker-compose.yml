@@ -11,7 +11,7 @@ services:
       APP_NAME: ${APP_NAME}
       SERVER_ENDPOINT: ${SERVER_ENDPOINT}
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${DATABASE_PORT}/${POSTGRES_DB}
-      REDIS_URL: ${REDIS_URL}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:${REDIS_PORT}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       SMTP_AWS_SES: ${SMTP_AWS_SES}
@@ -28,12 +28,16 @@ services:
       MSG91_AUTH_KEY: ${MSG91_AUTH_KEY}
       MSG91_TEMPLATE_ID: ${MSG91_TEMPLATE_ID}
       LOG_ACTIVITY: ${LOG_ACTIVITY}
+      NODE_OPTIONS: ${NODE_OPTIONS:---max-old-space-size=4096}
     volumes:
       - ./credentials/gcp:/app/credentials/gcp:ro
       - ./logs:/home/logs
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
     networks:
       - jobstack-provider-network-c
   db:
@@ -48,14 +52,30 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - jobstack-provider-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -p ${DATABASE_PORT}']
+      interval: 5s
+      timeout: 3s
+      retries: 20
     networks:
       - jobstack-provider-network-c
   redis:
     image: redis:7.2-alpine
-    restart: unless-stopped
+    restart: always
     container_name: redis
+    command:
+      - sh
+      - -c
+      - >
+        exec redis-server --appendonly yes --appendfsync everysec --save "" --maxmemory ${REDIS_MAXMEMORY:-256mb} --maxmemory-policy ${REDIS_MAXMEMORY_POLICY:-allkeys-lru} ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
+
     volumes:
       - jobstack-provider-redis:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli ${REDIS_PASSWORD:+-a ${REDIS_PASSWORD}} ping | grep PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 20
     networks:
       - jobstack-provider-network-c
 networks:
