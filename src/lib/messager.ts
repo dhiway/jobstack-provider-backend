@@ -32,7 +32,6 @@ export async function sendSmsWithMsg91({
     body,
   });
   const response = await resp.text();
-  console.info('sending sms to user: ', response);
   if (!resp.ok) {
     const errorText = await resp.text();
     throw new Error(`MSG91 SMS send failed: ${errorText}`);
