@@ -28,7 +28,7 @@ const createJobPosting = async (
       statusCode: 400,
       code: 'BAD_REQUEST',
       error: 'Invalid Query Params',
-      message: parsed.error.flatten().fieldErrors,
+      message: z.flattenError(parsed.error).fieldErrors,
     });
   }
 
@@ -52,11 +52,16 @@ const createJobPosting = async (
 
   // 3. If still not found, create new org
   if (!org) {
-    org = await db
+    const jobProviderName = metadata?.basicInfo?.jobProviderName;
+    const name =
+      typeof jobProviderName === 'string'
+        ? jobProviderName
+        : `Org XYZ (${phoneNumber})`;
+    const orgs = await db
       .insert(organization)
       .values({
         id: crypto.randomUUID(),
-        name: `Org XYZ (${phoneNumber})`,
+        name: name.trim(),
         slug: crypto.randomUUID().slice(0, 8),
         createdAt: new Date(),
         metadata: JSON.stringify({
@@ -69,8 +74,9 @@ const createJobPosting = async (
           description: 'Created automatically by AI agent by call - Edit later',
         }),
       })
-      .returning()
-      .then((rows) => rows[0]);
+      .returning();
+
+    org = orgs[0];
 
     await db.insert(member).values({
       id: crypto.randomUUID(),
