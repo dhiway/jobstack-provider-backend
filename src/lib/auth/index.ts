@@ -67,7 +67,14 @@ export const auth = betterAuth({
       },
     },
   },
+  session: {
+    cookieCache: {
+      enabled: true,
+      maxAge: 10 * 60,
+    },
+  },
   rateLimit: {
+    enabled: true,
     storage: 'secondary-storage',
   },
   secondaryStorage: {
