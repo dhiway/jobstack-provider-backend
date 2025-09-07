@@ -7,15 +7,32 @@ import { db } from '@db/setup';
 
 type BecknSearchBodySchema = z.infer<typeof SearchRequestSchema>;
 
+type JobBase = {
+  id: string;
+  title: string;
+  organizationId: string;
+  organizationName: string;
+  location: unknown;
+  status: 'draft' | 'open' | 'closed' | 'archived';
+  createdAt: Date;
+};
+
+type JobDetailed = JobBase & { metadata: any };
+
+let jobs;
+
 export async function getJobPostings(
   request: FastifyRequest<{ Body: BecknSearchBodySchema }>,
   reply: FastifyReply
 ) {
-  const body = request.body;
+  const body = SearchRequestSchema.parse(request.body);
   const { intent } = body.message;
+  const brief = body.options?.brief;
 
   const page = body.pagination.page || 1;
-  const limit = body.pagination.limit || 20;
+  const limit = brief
+    ? body.pagination.limit
+    : Math.min(body.pagination.limit, 30);
   const offset = (page - 1) * limit;
 
   const whereConditions = [];
@@ -37,7 +54,8 @@ export async function getJobPostings(
   // Search by location
   const locations = intent.provider?.locations;
   if (locations && locations.length > 0) {
-    const locationConditions = locations.map((loc) => {
+    const locationConditions = [];
+    for (const loc of locations) {
       const conds = [];
       if (loc.city?.name) {
         conds.push(
@@ -54,82 +72,21 @@ export async function getJobPostings(
           sql`${jobPosting.location} ->> 'country' ILIKE ${`%${loc.country.name}%`}`
         );
       }
-      return and(...conds);
-    });
-    whereConditions.push(or(...locationConditions));
-  }
-
-  // Search by user details in metadata
-  const person = intent.fulfillment?.customer?.person;
-  if (person) {
-    if (person.age) {
-      whereConditions.push(
-        sql`${jobPosting.metadata} ->> 'age' = ${person.age}`
-      );
+      if (conds.length > 0) {
+        locationConditions.push(and(...conds));
+      }
     }
-    if (person.gender) {
-      whereConditions.push(
-        sql`${jobPosting.metadata} ->> 'gender' ILIKE ${person.gender}`
-      );
-    }
-    if (person.skills && person.skills.length > 0) {
-      const skillConditions = person.skills.map(
-        (skill) =>
-          sql`${jobPosting.metadata} -> 'skills' @> ${JSON.stringify([skill.code])}::jsonb`
-      );
-      whereConditions.push(or(...skillConditions));
+    if (locationConditions.length > 0) {
+      whereConditions.push(or(...locationConditions));
     }
   }
 
-  // Search by tags in metadata
-  const tags = intent.item?.tags ?? [];
-  tags.forEach((tag) => {
-    tag.list?.forEach((listItem) => {
-      const code = listItem.descriptor?.code;
-      const value = listItem.value;
-      if (code === 'industry-type' && value) {
-        whereConditions.push(
-          sql`${jobPosting.metadata} ->> 'industryType' ILIKE ${`%${value}%`}`
-        );
-      }
-      if (code === 'employment-type' && value) {
-        whereConditions.push(
-          sql`${jobPosting.metadata} ->> 'employmentType' ILIKE ${`%${value}%`}`
-        );
-      }
-      if (code === 'status' && value) {
-        whereConditions.push(sql`${jobPosting.status} = ${value}`);
-      }
-    });
-  });
-
-  if (whereConditions.length === 0) {
-    /* return reply.status(400).send({ */
-    /*   statusCode: 400, */
-    /*   error: 'Bad Request', */
-    /*   message: 'No valid search filters provided', */
-    /* }); */
-  }
-
-  const jobs = await db
-    .select({
-      id: jobPosting.id,
-      title: jobPosting.title,
-      organizationId: jobPosting.organizationId,
-      organizationName: jobPosting.organizationName,
-      location: jobPosting.location,
-      metadata: jobPosting.metadata,
-      status: jobPosting.status,
-      createdAt: jobPosting.createdAt,
-      totalCount: sql<number>`count(*) OVER()`.as('total_count'),
-    })
+  const [{ count }] = await db
+    .select({ count: sql<number>`COUNT(*)` })
     .from(jobPosting)
-    .where(and(...whereConditions))
-    .orderBy(desc(jobPosting.createdAt))
-    .limit(limit)
-    .offset(offset);
+    .where(and(...whereConditions));
 
-  if (!jobs.length) {
+  if (count === 0) {
     return reply.status(404).send({
       statusCode: 404,
       error: 'Not Found',
@@ -137,7 +94,41 @@ export async function getJobPostings(
     });
   }
 
-  // 👉 Group jobs by provider
+  if (brief) {
+    jobs = await db
+      .select({
+        id: jobPosting.id,
+        title: jobPosting.title,
+        organizationId: jobPosting.organizationId,
+        organizationName: jobPosting.organizationName,
+        location: jobPosting.location,
+        status: jobPosting.status,
+        createdAt: jobPosting.createdAt,
+      })
+      .from(jobPosting)
+      .where(and(...whereConditions))
+      .orderBy(desc(jobPosting.createdAt))
+      .limit(limit)
+      .offset(offset);
+  } else {
+    jobs = await db
+      .select({
+        id: jobPosting.id,
+        title: jobPosting.title,
+        organizationId: jobPosting.organizationId,
+        organizationName: jobPosting.organizationName,
+        metadata: jobPosting.metadata,
+        location: jobPosting.location,
+        status: jobPosting.status,
+        createdAt: jobPosting.createdAt,
+      })
+      .from(jobPosting)
+      .where(and(...whereConditions))
+      .orderBy(desc(jobPosting.createdAt))
+      .limit(limit)
+      .offset(offset);
+  }
+  // Group jobs by provider
   const providersMap = new Map<
     string,
     {
@@ -149,12 +140,11 @@ export async function getJobPostings(
     }
   >();
 
-  for (const job of jobs) {
-    if (typeof job.metadata === 'object') {
-      job.metadata = { ...job.metadata, status: job.status };
-    } else {
-      job.metadata = { status: job.status };
-    }
+  for (const job of jobs as JobDetailed[]) {
+    const metadata =
+      typeof job.metadata === 'object'
+        ? { ...job.metadata, status: job.status }
+        : { status: job.status };
     if (!providersMap.has(job.organizationId)) {
       providersMap.set(job.organizationId, {
         id: job.organizationId,
@@ -169,33 +159,18 @@ export async function getJobPostings(
 
     const provider = providersMap.get(job.organizationId)!;
 
-    // Locations
-    provider.locations.push(job.location);
-
     // Item
     provider.items.push({
       id: job.id,
       descriptor: {
         name: job.title,
       },
-      price: undefined, // optional, depends on your ItemSchema
-      tags: job.metadata,
-    });
-
-    // Fulfillment (basic placeholder — adapt if you have actual fulfillment data)
-    provider.fulfillments.push({
-      id: `fulfillment-${job.id}`,
-      stops: [
-        {
-          type: 'end',
-          location: job.location,
-        },
-      ],
+      locations: job.location,
+      tags: metadata,
     });
   }
 
   const providers = Array.from(providersMap.values());
-  const totalCount = jobs.length > 0 ? Number(jobs[0].totalCount) : 0;
 
   const response = {
     message: {
@@ -209,8 +184,12 @@ export async function getJobPostings(
     pagination: {
       page,
       limit,
-      totalCount,
+      totalCount: count,
     },
   };
-  return reply.send(response);
+  function clearVariables() {
+    providers.length = 0;
+    jobs = null;
+  }
+  return reply.send(response).then(clearVariables, clearVariables);
 }

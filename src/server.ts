@@ -95,6 +95,20 @@ async function main() {
   await app.register(v1Routes, { prefix: '/api/v1' });
   await app.register(AuthRoutes);
 
+  // Loggers
+  app.addHook('onResponse', (request, _, done) => {
+    const memoryUsage = process.memoryUsage();
+    if (memoryUsage.heapUsed > 1024 * 1024 * 1024) {
+      // 1gb threshold
+      console.warn(
+        `High memory usage: ${request.url}-${new Date()}`,
+        memoryUsage.heapUsed / 1024 / 1024,
+        'MB'
+      );
+    }
+    done();
+  });
+
   await app.listen({
     port: port,
     host: '0.0.0.0',

@@ -51,6 +51,11 @@ const SearchMessageSchema = z.object({
 });
 
 const SearchRequestSchema = z.object({
+  options: z
+    .object({
+      brief: z.boolean().default(false),
+    })
+    .optional(),
   /* context: ContextSchema, */
   message: SearchMessageSchema,
   pagination: z.object({
