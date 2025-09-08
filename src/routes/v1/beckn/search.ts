@@ -81,6 +81,18 @@ export async function getJobPostings(
     }
   }
 
+  // Search by tags in metadata
+  const tags = intent.item?.tags ?? [];
+  tags.forEach((tag) => {
+    tag.list?.forEach((listItem) => {
+      const code = listItem.descriptor?.code;
+      const value = listItem.value;
+      if (code === 'status' && value) {
+        whereConditions.push(sql`${jobPosting.status} = ${value}`);
+      }
+    });
+  });
+
   const [{ count }] = await db
     .select({ count: sql<number>`COUNT(*)` })
     .from(jobPosting)
