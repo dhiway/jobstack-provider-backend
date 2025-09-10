@@ -84,8 +84,8 @@ async function main() {
   app.register(fastifyRateLimit, {
     global: true,
     redis,
-    keyGenerator: (req) => req.user?.id ?? req.ip,
     max: 100,
+    ban: 3,
     timeWindow: '1 minute',
     skipOnError: true,
   });

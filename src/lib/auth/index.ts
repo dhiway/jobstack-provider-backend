@@ -74,8 +74,7 @@ export const auth = betterAuth({
     },
   },
   rateLimit: {
-    enabled: true,
-    storage: 'secondary-storage',
+    enabled: false, // Does not work when session is not present. unpredictable. disabled till betterAuth fixes the approach
   },
   secondaryStorage: {
     get: async (key) => {
