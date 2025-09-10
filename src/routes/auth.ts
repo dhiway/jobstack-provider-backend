@@ -5,7 +5,7 @@ const AuthRoutes: FastifyPluginAsync = async (fastify): Promise<void> => {
   fastify.route({
     method: ['GET', 'POST', 'OPTIONS'],
     url: '/api/v1/auth/*',
-    config: { rateLimit: false },
+    config: { rateLimit: { max: 10, timeWindow: '10 seconds' } },
     handler: async (request, reply) => {
       if (request.method === 'OPTIONS') {
         return reply.status(204).send();
