@@ -4,6 +4,7 @@ import { eq, sql } from 'drizzle-orm';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod/v4';
 import { jobPosting } from '@db/schema';
+import { sendWhatsAppMessage } from '@lib/whatsapp-messager';
 
 export const CreateJobPostingRequestSchema = z.object({
   title: z.string(),
@@ -105,6 +106,17 @@ const createJobPosting = async (
         updatedAt: new Date(),
       })
       .returning();
+
+    if (process.env.SEND_WHATSAPP_NOTIFICATION === 'true') {
+      try {
+        await sendWhatsAppMessage(
+          phoneNumber,
+          process.env.TWILIO_CONTENT_SID_DIALFLOW_PROVIDER!
+        );
+      } catch (err) {
+        console.error('Whatsapp message failed', err);
+      }
+    }
 
     return reply.status(200).send({
       statusCode: 200,
