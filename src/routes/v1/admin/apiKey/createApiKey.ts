@@ -44,7 +44,9 @@ export async function createApiKey(
     rateLimitMax: rateLimitMax ?? 1000,
   };
 
-  const apiKeyUserId = (isAdmin && typeof userId === 'string') || user.id;
+  const apiKeyUserId = isAdmin && typeof userId === 'string' ? userId : user.id;
+  const hasPermissions = permissions && Object.keys(permissions).length > 0;
+
   try {
     const result = await auth.api.createApiKey({
       body: {
@@ -53,7 +55,7 @@ export async function createApiKey(
         metadata,
         prefix,
         userId: apiKeyUserId,
-        permissions,
+        permissions: hasPermissions ? permissions : undefined,
         rateLimitEnabled,
         ...effectiveRateLimit,
       },

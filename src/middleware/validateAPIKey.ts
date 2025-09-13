@@ -7,10 +7,13 @@ export async function validateAPIKey(
 ) {
   const apiKey = request.headers['x-api-key'];
   if (typeof apiKey === 'string') {
+    const hasPermissions =
+      typeof request.permissions === 'object' &&
+      Object.keys(request.permissions).length > 0;
     const verified = await auth.api.verifyApiKey({
       body: {
         key: apiKey,
-        permissions: request.permissions || undefined,
+        permissions: hasPermissions ? request.permissions : undefined,
       },
     });
     if (verified.error || !verified.valid) {
