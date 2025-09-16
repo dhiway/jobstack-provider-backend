@@ -13,6 +13,11 @@ import fastifyRateLimit from '@fastify/rate-limit';
 import redis from '@lib/redis';
 import AuthRoutes from '@routes/auth';
 import HomepageRoute from '@routes/home';
+import {
+  initOpenSearch,
+  searchJobApplications,
+  searchJobPostings,
+} from '@lib/opensearch';
 
 const env_port = parseInt(process.env.BACKEND_PORT || '3001');
 const port = isNaN(env_port) ? 3001 : env_port;
@@ -22,9 +27,24 @@ async function main() {
     logger: { file: '/home/logs/app.log', level: 'debug' },
     trustProxy: true,
   });
+
+  await initOpenSearch();
+
   // Zod Validation Compiler Setup
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
+
+  app.get('/api/v1/search/jobs', async (req) => {
+    const { q } = req.query as { q: string };
+    const results = await searchJobPostings(q);
+    return { results };
+  });
+
+  app.get('/api/v1/search/applications', async (req) => {
+    const { q } = req.query as { q: string };
+    const results = await searchJobApplications(q);
+    return { results };
+  });
 
   // CORS Setup
   const allowed_origins = [''];

@@ -85,6 +85,33 @@ services:
       retries: 20
     networks:
       - jobstack-provider-network-c
+  opensearch:
+    image: opensearchproject/opensearch:2.15.0
+    container_name: opensearch
+    environment:
+      - discovery.type=single-node
+      - plugins.security.disabled=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=Xmx512@mXmx512m #test - change to env variable
+      - OPENSEARCH_URL=http://opensearch:9200
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - '9200:9200'
+    networks:
+      - jobstack-provider-network-c
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.15.0
+    container_name: opensearch-dashboards
+    ports:
+      - '5601:5601'
+    environment:
+      - OPENSEARCH_HOSTS=["http://opensearch:9200"]
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=Xmx512@mXmx512m #test - change to env variable
+    networks:
+      - jobstack-provider-network-c
 networks:
   jobstack-provider-network-c:
     name: jobstack-provider-network-c

@@ -8,6 +8,7 @@ import { db } from '@db/setup';
 import { member, organization } from '@db/schema/auth';
 import { eq, and } from 'drizzle-orm';
 import { jobPosting } from '@db/schema/job';
+import { indexJobPosting } from '@lib/opensearch';
 
 type CreateJobPostInput = z.infer<typeof CreateJobPostSchema>;
 type JobQueryInput = z.infer<typeof JobParamsSchema>;
@@ -59,6 +60,11 @@ export async function createJobPost(
       createdBy: userId,
     })
     .returning();
+  try {
+    await indexJobPosting(newJobPost[0]);
+  } catch (err: any) {
+    console.log('opensearch err:', err.message);
+  }
 
   return reply.status(201).send({
     statusCode: 201,
