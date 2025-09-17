@@ -4,7 +4,7 @@ const client = new Client({
   node: process.env.OPENSEARCH_URL || 'http://opensearch:9200',
   auth: {
     username: 'admin',
-    password: 'Xmx512@mXmx512m', // test - change to env variable
+    password: process.env.OPENSEARCH_ADMIN_PASSWORD!, // test - change to env variable
   },
 });
 
