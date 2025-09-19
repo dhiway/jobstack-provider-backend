@@ -33,6 +33,8 @@
     "@fastify/swagger": "^9.5.1",
     "@google-cloud/storage": "^7.17.0",
     "@scalar/fastify-api-reference": "^1.34.6",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
     "better-auth": "^1.3.7",
     "dotenv": "^17.2.1",
     "drizzle-orm": "^0.44.5",
