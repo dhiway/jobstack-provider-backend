@@ -13,6 +13,7 @@ import fastifyRateLimit from '@fastify/rate-limit';
 import redis from '@lib/redis';
 import AuthRoutes from '@routes/auth';
 import HomepageRoute from '@routes/home';
+import v2Routes from '@routes/v2';
 
 const env_port = parseInt(process.env.BACKEND_PORT || '3001');
 const port = isNaN(env_port) ? 3001 : env_port;
@@ -93,6 +94,7 @@ async function main() {
   // Application Routes Setup
   await app.register(HomepageRoute);
   await app.register(v1Routes, { prefix: '/api/v1' });
+  await app.register(v2Routes, { prefix: '/api/v2' });
   await app.register(AuthRoutes);
 
   // Loggers
