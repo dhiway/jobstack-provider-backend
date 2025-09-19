@@ -5,6 +5,7 @@ import {
   jsonb,
   timestamp,
   pgEnum,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { organization, user } from '@db/schema/auth';
 
@@ -56,6 +57,43 @@ export const jobApplication = pgTable('job_application', {
     .$defaultFn(() => new Date())
     .notNull(),
   updatedAt: timestamp('updated_at')
+    .$defaultFn(() => new Date())
+    .notNull(),
+});
+
+export const schemaDefinition = pgTable(
+  'schema_definition',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: text('org_id'), // null = global, non-null = org-specific
+    url: text('url'), // original URL reference
+    hash: text('hash'), // dedupe key
+    body: jsonb('body'),
+    name: text('name').notNull(),
+    description: text('description'),
+    version: text('version').default('1.0.0'),
+    createdAt: timestamp('created_at')
+      .$defaultFn(() => new Date())
+      .notNull(),
+    updatedAt: timestamp('updated_at')
+      .$defaultFn(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex('schema_def_unique_hash_org').on(table.hash, table.orgId),
+    uniqueIndex('schema_def_unique_url_org').on(table.url, table.orgId),
+  ]
+);
+
+export const schemaLink = pgTable('schema_link', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  schemaId: uuid('schema_id')
+    .notNull()
+    .references(() => schemaDefinition.id, { onDelete: 'cascade' }),
+  jobPostingId: uuid('job_posting_id').references(() => jobPosting.id, {
+    onDelete: 'cascade',
+  }),
+  createdAt: timestamp('created_at')
     .$defaultFn(() => new Date())
     .notNull(),
 });
