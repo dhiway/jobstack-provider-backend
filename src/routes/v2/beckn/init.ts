@@ -2,7 +2,12 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import AjvDraft07 from 'ajv';
 import Ajv2020 from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
-import { jobApplication, jobPosting } from '@db/schema';
+import {
+  jobApplication,
+  jobPosting,
+  schemaDefinition,
+  schemaLink,
+} from '@db/schema';
 import { db } from '@db/setup';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod/v4';
@@ -38,20 +43,29 @@ export async function initJobApplication(
   request: FastifyRequest<{ Body: InitJobApplicationBody }>,
   reply: FastifyReply
 ) {
-  const { schema, metadata, jobPostingId, transactionId, userDetails } =
-    request.body;
+  const { metadata, jobPostingId, transactionId, userDetails } = request.body;
 
   try {
     let schemaObj: any;
 
-    if (typeof schema === 'string') {
-      const res = await fetch(schema);
+    const [schema] = await db
+      .select({
+        url: schemaDefinition.url,
+        body: schemaDefinition.body,
+      })
+      .from(schemaDefinition)
+      .innerJoin(schemaLink, eq(schemaDefinition.id, schemaLink.schemaId))
+      .where(eq(schemaLink.jobPostingId, jobPostingId))
+      .limit(1);
+
+    if (typeof schema.url === 'string') {
+      const res = await fetch(schema.url);
       if (!res.ok) {
         return reply.status(400).send({ error: 'Failed to fetch schema URL' });
       }
       schemaObj = await res.json();
     } else {
-      schemaObj = schema;
+      schemaObj = schema.body;
     }
 
     const ajv = pickAjv(schemaObj);
