@@ -80,20 +80,28 @@ export const schemaDefinition = pgTable(
       .notNull(),
   },
   (table) => [
+    // enable unique schema check for org
     uniqueIndex('schema_def_unique_hash_org').on(table.hash, table.orgId),
     uniqueIndex('schema_def_unique_url_org').on(table.url, table.orgId),
   ]
 );
 
-export const schemaLink = pgTable('schema_link', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  schemaId: uuid('schema_id')
-    .notNull()
-    .references(() => schemaDefinition.id, { onDelete: 'cascade' }),
-  jobPostingId: uuid('job_posting_id').references(() => jobPosting.id, {
-    onDelete: 'cascade',
-  }),
-  createdAt: timestamp('created_at')
-    .$defaultFn(() => new Date())
-    .notNull(),
-});
+export const schemaLink = pgTable(
+  'schema_link',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    schemaId: uuid('schema_id')
+      .notNull()
+      .references(() => schemaDefinition.id, { onDelete: 'cascade' }),
+    jobPostingId: uuid('job_posting_id')
+      .notNull()
+      .references(() => jobPosting.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at')
+      .$defaultFn(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    // enforce one schema per job posting
+    uniqueIndex('unique_jobposting_schema').on(table.jobPostingId),
+  ]
+);
