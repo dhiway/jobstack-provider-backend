@@ -46,10 +46,15 @@ export async function initJobApplication(
       .where(eq(schemaLink.jobPostingId, jobPostingId))
       .limit(1);
 
-    if (typeof schema.url === 'string') {
+    if (typeof schema.url === 'string' && typeof schema.body !== 'object') {
       const res = await fetch(schema.url);
       if (!res.ok) {
-        return reply.status(400).send({ error: 'Failed to fetch schema URL' });
+        return reply.status(400).send({
+          statusCode: 400,
+          code: 'BAD_REQUEST',
+          error: 'Unavailable Schema Url',
+          message: 'failed to fetch schema from given url',
+        });
       }
       schemaObj = await res.json();
     } else {
