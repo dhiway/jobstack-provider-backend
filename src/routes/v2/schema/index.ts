@@ -1,17 +1,18 @@
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import { createSchema } from './createSchema';
 
 const schemaProviderRoutes: FastifyPluginAsyncZod = async function (fastify) {
   fastify.route({
     url: '/',
-    method: 'GET',
+    method: 'POST',
     schema: {
       tags: ['Schema'],
     },
-    handler: () => {},
+    handler: createSchema,
   });
   fastify.route({
     url: '/',
-    method: 'POST',
+    method: 'GET',
     schema: {
       tags: ['Schema'],
     },
