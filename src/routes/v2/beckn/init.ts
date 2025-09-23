@@ -11,20 +11,8 @@ import {
 import { db } from '@db/setup';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod/v4';
-import { ContactSchema, LocationSchema } from '@validation/beckn/base-spec';
+import { InitJobApplicationSchema } from './validation/request';
 
-const InitJobApplicationSchema = z.object({
-  schema: z.record(z.string(), z.any()),
-  metadata: z.record(z.string(), z.any()),
-  jobPostingId: z.string(),
-  transactionId: z.string(),
-  userDetails: z.object({
-    id: z.string(),
-    name: z.string(),
-    contact: ContactSchema.optional(),
-    location: LocationSchema.optional(),
-  }),
-});
 type InitJobApplicationBody = z.infer<typeof InitJobApplicationSchema>;
 
 const ajvDraft07 = new AjvDraft07({ allErrors: true, strict: false });
