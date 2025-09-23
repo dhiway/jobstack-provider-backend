@@ -3,11 +3,8 @@ import { db } from '@db/setup';
 import { and, eq } from 'drizzle-orm';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod/v4';
+import { SelectJobApplicationSchema } from './validation/request';
 
-export const SelectJobApplicationSchema = z.object({
-  jobPostingId: z.string(),
-  providerId: z.string(),
-});
 type SelectJobApplicationBody = z.infer<typeof SelectJobApplicationSchema>;
 
 export async function selectJobApplication(
