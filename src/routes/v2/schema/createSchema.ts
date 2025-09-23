@@ -6,8 +6,9 @@ import {
 } from '@db/schema';
 import { db } from '@db/setup';
 import { calculateHash } from '@lib/index';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, DrizzleQueryError } from 'drizzle-orm';
 import { FastifyReply, FastifyRequest } from 'fastify';
+import { DatabaseError } from 'pg';
 import { z } from 'zod/v4';
 
 export const CreateSchemaRequestSchema = z.object({
@@ -24,7 +25,7 @@ export const CreateSchemaRequestSchema = z.object({
 
 type createSchemaBody = z.infer<typeof CreateSchemaRequestSchema>;
 
-export async function selectJobApplication(
+export async function createSchema(
   request: FastifyRequest<{ Body: createSchemaBody }>,
   reply: FastifyReply
 ) {
@@ -86,13 +87,13 @@ export async function selectJobApplication(
 
   // Check if schema already exists
   let existingSchema;
-  if (urlHash) {
+  if (bodyHash) {
     [existingSchema] = await db
       .select()
       .from(schemaDefinition)
       .where(
         and(
-          eq(schemaDefinition.hash, urlHash),
+          eq(schemaDefinition.hash, bodyHash),
           orgId
             ? eq(schemaDefinition.orgId, orgId)
             : isNull(schemaDefinition.orgId)
@@ -100,13 +101,13 @@ export async function selectJobApplication(
       )
       .limit(1);
   }
-  if (!existingSchema && bodyHash) {
+  if (!existingSchema && urlHash) {
     [existingSchema] = await db
       .select()
       .from(schemaDefinition)
       .where(
         and(
-          eq(schemaDefinition.hash, bodyHash),
+          eq(schemaDefinition.hash, urlHash),
           orgId
             ? eq(schemaDefinition.orgId, orgId)
             : isNull(schemaDefinition.orgId)
@@ -151,6 +152,20 @@ export async function selectJobApplication(
       schemaId: schemaToUse.id,
     });
   } catch (err: any) {
+    if (err instanceof DrizzleQueryError) {
+      if (err.cause instanceof DatabaseError) {
+        if (err.cause.code === '23505') {
+          // ...
+          return reply.code(500).send({
+            statusCode: 500,
+            code: 'SCHEMA_LINK_EXISTS',
+            error: 'Job posting already linked',
+            message: `Job posting ${posting.id} is already linked to a schema. The new schema (${schemaToUse.id}) was created but could not be linked.`,
+          });
+        }
+      }
+    }
+
     return reply.status(500).send({
       statusCode: 500,
       code: 'INTERNAL_SERVER_ERROR',
@@ -158,7 +173,6 @@ export async function selectJobApplication(
       message: `failed to add schema id: ${schemaToUse.id} to jobPosting: ${posting.id}`,
     });
   }
-
   reply.code(200).send({
     schema: schemaToUse,
     jobPosting: { id: posting.id },
