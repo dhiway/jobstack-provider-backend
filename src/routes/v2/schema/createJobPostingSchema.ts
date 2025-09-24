@@ -10,23 +10,12 @@ import { eq, and, isNull, DrizzleQueryError } from 'drizzle-orm';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { DatabaseError } from 'pg';
 import { z } from 'zod/v4';
+import { CreateSchemaRequestSchema } from './validation/request';
 
-export const CreateSchemaRequestSchema = z.object({
-  jobPostingId: z.string(),
-  orgId: z.string().optional(),
-  schema: z.object({
-    url: z.url().optional(),
-    body: z.record(z.string(), z.any()).optional(),
-    name: z.string().default('new schema'),
-    description: z.string().default('').optional(),
-    version: z.string().default('1.0.0').optional(),
-  }),
-});
+type createJobPostingSchemaBody = z.infer<typeof CreateSchemaRequestSchema>;
 
-type createSchemaBody = z.infer<typeof CreateSchemaRequestSchema>;
-
-export async function createSchema(
-  request: FastifyRequest<{ Body: createSchemaBody }>,
+export async function createJobPostingSchema(
+  request: FastifyRequest<{ Body: createJobPostingSchemaBody }>,
   reply: FastifyReply
 ) {
   const { jobPostingId, orgId, schema } = request.body;
@@ -174,8 +163,8 @@ export async function createSchema(
     });
   }
   reply.code(200).send({
-    schema: schemaToUse,
     jobPosting: { id: posting.id },
+    schema: schemaToUse,
     global: schemaToUse.orgId ? false : true,
   });
 }

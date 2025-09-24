@@ -1,5 +1,5 @@
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { createSchema } from './createSchema';
+import { createJobPostingSchema } from './createJobPostingSchema';
 
 const schemaProviderRoutes: FastifyPluginAsyncZod = async function (fastify) {
   fastify.route({
@@ -8,7 +8,7 @@ const schemaProviderRoutes: FastifyPluginAsyncZod = async function (fastify) {
     schema: {
       tags: ['Schema'],
     },
-    handler: createSchema,
+    handler: createJobPostingSchema,
   });
   fastify.route({
     url: '/',
