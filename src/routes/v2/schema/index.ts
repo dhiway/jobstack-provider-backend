@@ -8,7 +8,7 @@ import { authMiddleware } from '@middleware/validateSession';
 
 const schemaProviderRoutes: FastifyPluginAsyncZod = async function (fastify) {
   fastify.route({
-    url: '/',
+    url: '/job-posting',
     method: 'POST',
     preHandler: authMiddleware,
     schema: {
