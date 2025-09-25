@@ -2,7 +2,7 @@ import { member, organization } from '@db/schema/auth';
 import { jobApplication } from '@db/schema/job';
 import { db } from '@db/setup';
 import { GetUsersByOrgRoleRequestSchema } from '@validation/schema/admin/common';
-import { and, eq, inArray, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod/v4';
 
@@ -15,7 +15,7 @@ export async function getUsersWithJobApplications(
   const {
     organizationId,
     organizationSlug,
-    role: role,
+    role,
     type,
     page,
     limit,
@@ -34,26 +34,30 @@ export async function getUsersWithJobApplications(
     });
   }
 
-  let orgId = organizationId;
-  if (!orgId && organizationSlug) {
+  let orgId = null;
+
+  if (organizationSlug) {
     const org = await db
       .select()
       .from(organization)
-      .where(
-        or(
-          eq(organization.slug, organizationSlug),
-          eq(organization.slug, organizationSlug)
-        )
-      );
-    if (!org[0]) {
-      return reply.status(404).send({
-        statusCode: 404,
-        code: 'ORG_NOT_FOUND',
-        error: 'Not Found',
-        message: 'Organization not found',
-      });
-    }
+      .where(eq(organization.slug, organizationSlug));
     orgId = org[0].id;
+  }
+  if (!organizationSlug && organizationId) {
+    const org = await db
+      .select()
+      .from(organization)
+      .where(eq(organization.id, organizationId));
+    orgId = org[0].id;
+  }
+
+  if (orgId === null) {
+    return reply.status(404).send({
+      statusCode: 404,
+      code: 'ORG_NOT_FOUND',
+      error: 'Not Found',
+      message: 'Organization not found',
+    });
   }
 
   const whereClauses = [eq(member.role, role)];
@@ -92,19 +96,22 @@ export async function getUsersWithJobApplications(
     type !== 'count'
       ? await usersQuery.offset((pageInt - 1) * limitInt).limit(limitInt)
       : [];
-
-  const totalCount = await db
-    .selectDistinct({ count: sql<number>`COUNT(*)` })
-    .from(usersQuery.as('sq'))
-    .execute()
-    .then((r) => Number(r[0]?.count ?? 0));
+  console.log(usersList);
+  const [totalCount] = await db
+    .select({
+      userCount: sql<number>`CAST(COUNT(DISTINCT ${jobApplication.userId}) AS INTEGER)`,
+      applicationCount: sql<number>`CAST(COUNT(DISTINCT ${jobApplication.id}) AS INTEGER)`,
+    })
+    .from(jobApplication)
+    .innerJoin(member, eq(jobApplication.userId, member.userId))
+    .where(eq(member.organizationId, orgId));
 
   return reply.send({
     statusCode: 200,
     message: 'Users with job applications retrieved successfully',
     data: {
       orgId,
-      totalCount,
+      totalCount: totalCount,
       users: type !== 'count' ? usersList.map((s) => s.userId) : undefined,
     },
   });

@@ -119,7 +119,12 @@ export const UsersByOrgRoleResponseSchema = z.object({
   message: z.string(),
   data: z.object({
     orgId: z.string().optional(),
-    totalCount: z.string().or(z.number()),
+    totalCount: z
+      .object({
+        userCount: z.number().or(z.string()),
+        applicationCount: z.number().or(z.string()),
+      })
+      .or(z.number().or(z.string())),
     users: z.array(z.string()).optional(), // userIds
     totalUsers: z.number().optional(),
     totalProfiles: z.number().optional(),
