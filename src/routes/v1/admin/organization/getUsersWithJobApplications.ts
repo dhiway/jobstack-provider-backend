@@ -96,7 +96,7 @@ export async function getUsersWithJobApplications(
     type !== 'count'
       ? await usersQuery.offset((pageInt - 1) * limitInt).limit(limitInt)
       : [];
-  console.log(usersList);
+
   const [totalCount] = await db
     .select({
       userCount: sql<number>`CAST(COUNT(DISTINCT ${jobApplication.userId}) AS INTEGER)`,
