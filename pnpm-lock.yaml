@@ -35,6 +35,12 @@ importers:
       '@scalar/fastify-api-reference':
         specifier: ^1.34.6
         version: 1.34.6(typescript@5.9.2)
+      ajv:
+        specifier: ^8.17.1
+        version: 8.17.1
+      ajv-formats:
+        specifier: ^3.0.1
+        version: 3.0.1(ajv@8.17.1)
       better-auth:
         specifier: ^1.3.7
         version: 1.3.7(zod@4.1.5)
