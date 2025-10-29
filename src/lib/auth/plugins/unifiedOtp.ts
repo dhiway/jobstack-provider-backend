@@ -3,6 +3,7 @@ import { APIError, createAuthEndpoint } from 'better-auth/api';
 import { type BetterAuthPlugin } from 'better-auth/types';
 import z from 'zod/v4';
 import { setSessionCookie } from './utils';
+import { createSSOAccount } from '@lib/sso-integration';
 
 const CheckUserInput = z.object({
   email: z.email('Please enter a valid Email').optional().meta({
@@ -658,12 +659,14 @@ export const unifiedOtp = ({
         }
 
         const updates: Partial<UserWithPhoneNumber> = {};
+        let wasEmailJustVerified = false;
 
         if (email) {
           if (!user.email || user.email.trim() === '') {
             updates.email = email;
           }
           if (!user.emailVerified) {
+            wasEmailJustVerified = true;
             updates.emailVerified = true;
           }
         }
@@ -683,6 +686,20 @@ export const unifiedOtp = ({
             where: [{ field: 'id', value: user.id }],
             update: updates,
           });
+
+          // Trigger SSO account creation when email is verified
+          if (wasEmailJustVerified && email) {
+            createSSOAccount({
+              email: email,
+              name: name || user.name || 'User',
+              phoneNumber: user.phoneNumber || '',
+            }).catch((err) => {
+              console.error(
+                '❌ [SSO] Account creation failed:',
+                err
+              );
+            });
+          }
         }
 
         const updatedUser =

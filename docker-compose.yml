@@ -36,6 +36,11 @@ services:
       MAIL_LOG: ${MAIL_LOG}
       LOG_ACTIVITY: ${LOG_ACTIVITY}
       SEND_WHATSAPP_NOTIFICATION: ${SEND_WHATSAPP_NOTIFICATION}
+      #SSO Integration
+      SSO_ENABLED: ${SSO_ENABLED:-false}
+      SSO_ENDPOINT: ${SSO_ENDPOINT}
+      SSO_ACCESS_TOKEN: ${SSO_ACCESS_TOKEN}
+      SSO_TIMEOUT_MS: ${SSO_TIMEOUT_MS:-20000}
     volumes:
       - ./credentials/gcp:/app/credentials/gcp:ro
       - ./logs:/home/logs
