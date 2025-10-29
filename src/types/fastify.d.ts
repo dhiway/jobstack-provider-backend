@@ -46,5 +46,11 @@ declare namespace NodeJS {
 
     GCP_PROJECT_ID: string;
     STORAGE_BASE_URL: string;
+
+    // SSO Integration
+    SSO_ENABLED?: 'true' | 'false';
+    SSO_ENDPOINT?: string;
+    SSO_ACCESS_TOKEN?: string;
+    SSO_TIMEOUT_MS?: string;
   }
 }
