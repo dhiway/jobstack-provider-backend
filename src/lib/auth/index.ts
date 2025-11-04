@@ -101,7 +101,7 @@ export const auth = betterAuth({
       // update the below fields according to your requirement
       await sendMail({
         fromName: senderName,
-        fromEmail: '',
+        fromEmail: 'hello@dhiway.com',
         to: user.email,
         subject: '',
         html: ``,
@@ -117,7 +117,7 @@ export const auth = betterAuth({
       // update the below fields according to your requirement
       await sendMail({
         fromName: senderName,
-        fromEmail: '',
+        fromEmail: 'hello@dhiway.com',
         to: user.email,
         subject: '',
         html: ``,
@@ -185,7 +185,7 @@ export const auth = betterAuth({
         // update the below fields according to your requirement
         await sendMail({
           fromName: '',
-          fromEmail: '',
+          fromEmail: 'hello@dhiway.com',
           to: email,
           subject: '',
           html: emailOtpHtmlTemplate(otp, user),

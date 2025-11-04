@@ -1,10 +1,12 @@
 import { db } from '@db/setup';
 import { organization, member } from '@db/schema/auth';
+import { organizationCordAccount } from '@db/schema/cord';
 import { eq, sql } from 'drizzle-orm';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod/v4';
 import { jobPosting } from '@db/schema';
 import { sendWhatsAppMessage } from '@lib/whatsapp-messager';
+import { createCordAccountForOrganization } from '@lib/cord/account';
 
 export const CreateJobPostingRequestSchema = z.object({
   title: z.string(),
@@ -86,6 +88,28 @@ const createJobPosting = async (
       createdAt: new Date(),
       organizationId: org.id,
     });
+
+    // ✅ NEW: Create CORD account, profile, and registry for organization
+    if (process.env.CORD_ENABLED === 'true') {
+      // Check if organization already has a CORD account
+      const existingCordAccount = await db.query.organizationCordAccount.findFirst({
+        where: (a, { eq }) => eq(a.orgId, org.id),
+      });
+
+      if (!existingCordAccount) {
+        createCordAccountForOrganization(org.id, org.slug || org.id.slice(0, 8))
+          .then(({ profileId, registryId, address }) => {
+            console.log(`✅ [CORD] Account, profile, and registry created for org ${org.id}`);
+            console.log(`   Profile ID: ${profileId}`);
+            console.log(`   Registry ID: ${registryId}`);
+            console.log(`   CORD Address: ${address}`);
+          })
+          .catch((err) => {
+            console.error(`❌ [CORD] Failed to create account/registry for org ${org.id}:`, err);
+            // Don't fail organization creation
+          });
+      }
+    }
   }
 
   // 4. Create job posting if org found/created

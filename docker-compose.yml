@@ -41,6 +41,11 @@ services:
       SSO_ENDPOINT: ${SSO_ENDPOINT}
       SSO_ACCESS_TOKEN: ${SSO_ACCESS_TOKEN}
       SSO_TIMEOUT_MS: ${SSO_TIMEOUT_MS:-20000}
+      #CORD Chain Integration
+      CORD_ENABLED: ${CORD_ENABLED:-false}
+      NETWORK_ADDRESS: ${NETWORK_ADDRESS}
+      STASH_ACC_MNEMONIC: ${STASH_ACC_MNEMONIC}
+      MNEMONIC_SECRET_KEY: ${MNEMONIC_SECRET_KEY}
     volumes:
       - ./credentials/gcp:/app/credentials/gcp:ro
       - ./logs:/home/logs

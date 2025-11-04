@@ -4,6 +4,10 @@ import { type BetterAuthPlugin } from 'better-auth/types';
 import z from 'zod/v4';
 import { setSessionCookie } from './utils';
 import { createSSOAccount } from '@lib/sso-integration';
+import { createCordAccountForUser } from '@lib/cord/account';
+import { db } from '@db/setup';
+import { userCordAccount } from '@db/schema';
+import { eq } from 'drizzle-orm';
 
 const CheckUserInput = z.object({
   email: z.email('Please enter a valid Email').optional().meta({
@@ -699,6 +703,27 @@ export const unifiedOtp = ({
                 err
               );
             });
+          }
+
+          // ✅ NEW: Create CORD account and DID when user is verified
+          if (process.env.CORD_ENABLED === 'true') {
+            // Check if user already has a CORD account
+            const existingCordAccount = await db.query.userCordAccount.findFirst({
+              where: (a, { eq }) => eq(a.userId, user.id),
+            });
+
+            if (!existingCordAccount) {
+              createCordAccountForUser(user.id, user.name || name || 'User')
+                .then(({ didId, address }) => {
+                  console.log(`✅ [CORD] Account and DID created for user ${user.id}`);
+                  console.log(`   DID: ${didId}`);
+                  console.log(`   CORD Address: ${address}`);
+                })
+                .catch((err) => {
+                  console.error(`❌ [CORD] Failed to create account/DID for user ${user.id}:`, err);
+                  // Don't fail user creation
+                });
+            }
           }
         }
 
