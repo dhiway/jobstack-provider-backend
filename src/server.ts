@@ -14,6 +14,7 @@ import redis from '@lib/redis';
 import AuthRoutes from '@routes/auth';
 import HomepageRoute from '@routes/home';
 import v2Routes from '@routes/v2';
+import { initializeCordConnection } from '@lib/cord/init';
 
 const env_port = parseInt(process.env.BACKEND_PORT || '3001');
 const port = isNaN(env_port) ? 3001 : env_port;
@@ -111,6 +112,20 @@ async function main() {
     done();
   });
 
+  // CORD Connection - MUST complete before server starts listening
+  if (process.env.CORD_ENABLED === 'true') {
+    try {
+      console.log('🔗 Initializing CORD connection...');
+      await initializeCordConnection();
+      console.log('✅ CORD initialization complete');
+    } catch (err: any) {
+      app.log.error('CORD Connection Error: ', err);
+      // Fail fast - don't start server if CORD is required but not available
+      throw new Error(`Failed to initialize CORD: ${err.message}`);
+    }
+  }
+
+  // Start server ONLY after CORD is ready (if enabled)
   await app.listen({
     port: port,
     host: '0.0.0.0',

@@ -102,6 +102,19 @@
 
 ---
 
+## SSO Integration (Cross-Application Account Creation)
+
+| Variable           | Description                                                              | Example                                          |
+| ------------------ | ------------------------------------------------------------------------ | ------------------------------------------------ |
+| `SSO_ENABLED`      | Enable/disable SSO integration (`true` / `false`).                      | `true`                                           |
+| `SSO_ENDPOINT`     | External application's API endpoint for creating accounts.              | `https://api.demo.dhiway.com/api/v1/users/createUserFromJob` |
+| `SSO_ACCESS_TOKEN` | Access token for authenticating with the external application's API.    | `JOBSTACK_BCK_END_SCRET_KEY_ne73192`            |
+| `SSO_TIMEOUT_MS`   | Timeout in milliseconds for SSO API calls (default: 10000).            | `10000`                                          |
+
+**Note:** When a user's email is verified in this application, they will be automatically created in the external application configured via SSO settings.
+
+---
+
 4. **Run Docker**
 
    ### Production
