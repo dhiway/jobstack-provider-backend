@@ -63,7 +63,11 @@
   },
   "pnpm": {
     "overrides": {
-      "@polkadot/types-known": "^15.10.2"
+      "@polkadot/types-known": "^15.10.2",
+      "@polkadot/api": "^15.10.2",
+      "@polkadot/util": "^13.5.7",
+      "@polkadot/keyring": "^13.5.7",
+      "@polkadot/util-crypto": "^13.5.7"
     }
   }
 }

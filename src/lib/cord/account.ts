@@ -116,21 +116,28 @@ export async function createCordAccountForUser(userId: string, userName: string)
  * Create CORD account for an organization with profile and registry
  */
 export async function createCordAccountForOrganization(orgId: string, orgSlug: string) {
+  console.log(`🔄 [CORD] Starting organization account creation for org ${orgId}...`);
+  
   return retryWithBackoff(
     async () => {
       const api = Cord.ConfigService.get('api');
       if (!api) throw new Error('Cord API not initialized');
 
+      console.log(`📝 [CORD] Creating account for org ${orgId}...`);
       const { account, mnemonic } = createAccount();
       if (!account || !mnemonic) throw new Error('Failed to create Cord account');
 
       const encMnemonic = encryptMnemonic(mnemonic);
       const publicKey = `0x${Buffer.from(account.publicKey).toString('hex')}`;
 
+      console.log(`💰 [CORD] Funding account ${account.address} for org ${orgId}...`);
       // Fund the new org account
       await fundAccount(api, account.address, TRANSFER_AMOUNT);
       
+      console.log(`📋 [CORD] Creating profile for org ${orgId}...`);
       const profileId = await createProfileOnChain(account, { pub_name: orgSlug });
+      
+      console.log(`📑 [CORD] Creating registry for org ${orgId}...`);
       const registry = await createRegistryOnChain(mnemonic, {});
 
       if (!profileId) {
@@ -141,6 +148,7 @@ export async function createCordAccountForOrganization(orgId: string, orgSlug: s
         throw new Error('No Registry Id found');
       }
 
+      console.log(`💾 [CORD] Saving to database for org ${orgId}...`);
       await db.insert(organizationCordAccount).values({
         orgId: orgId,
         cordAddress: account.address,
@@ -150,7 +158,7 @@ export async function createCordAccountForOrganization(orgId: string, orgSlug: s
         cordProfileId: profileId ?? null,
       });
       
-      console.log(`Cord account created for org ${orgId}: ${account.address}`);
+      console.log(`✅ [CORD] Account created for org ${orgId}: ${account.address}`);
       return { profileId, registryId: registry.registryId, address: account.address };
     },
     {

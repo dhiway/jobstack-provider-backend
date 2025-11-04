@@ -157,6 +157,9 @@ export const auth = betterAuth({
           },
         },
       },
+      // Note: organizationHooks not supported in better-auth v1.3.7
+      // Using route-level interception in src/routes/auth.ts instead
+      // TODO: Upgrade to better-auth v1.3.27+ to use hooks
     }),
     openAPI(),
     apiKey({

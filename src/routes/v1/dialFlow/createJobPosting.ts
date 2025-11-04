@@ -106,6 +106,11 @@ const createJobPosting = async (
           })
           .catch((err) => {
             console.error(`❌ [CORD] Failed to create account/registry for org ${org.id}:`, err);
+            console.error(`   Error details:`, {
+              message: err?.message,
+              stack: err?.stack,
+              name: err?.name,
+            });
             // Don't fail organization creation
           });
       }
