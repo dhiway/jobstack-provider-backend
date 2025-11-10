@@ -8,6 +8,7 @@ import { db } from '@db/setup';
 import { member, organization } from '@db/schema/auth';
 import { eq, and } from 'drizzle-orm';
 import { jobPosting } from '@db/schema/job';
+import { syncJobPostingToChain } from '@lib/cord/jobEntry';
 
 type CreateJobPostInput = z.infer<typeof CreateJobPostSchema>;
 type JobQueryInput = z.infer<typeof JobParamsSchema>;
@@ -59,6 +60,18 @@ export async function createJobPost(
       createdBy: userId,
     })
     .returning();
+
+  // ✅ Create registry entry on CORD chain (non-blocking)
+  if (process.env.CORD_ENABLED === 'true') {
+    syncJobPostingToChain(newJobPost[0].id)
+      .then(() => {
+        console.log(`✅ [CORD] Entry created for job posting ${newJobPost[0].id}`);
+      })
+      .catch((err) => {
+        console.error(`❌ [CORD] Failed to create entry for job posting ${newJobPost[0].id}:`, err);
+        // Don't fail the request - non-blocking
+      });
+  }
 
   return reply.status(201).send({
     statusCode: 201,

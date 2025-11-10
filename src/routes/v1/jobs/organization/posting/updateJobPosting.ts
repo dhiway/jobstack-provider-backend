@@ -8,6 +8,7 @@ import { db } from '@db/setup';
 import { member, organization } from '@db/schema/auth';
 import { eq, and } from 'drizzle-orm';
 import { jobPosting } from '@db/schema/job';
+import { syncJobPostingToChain } from '@lib/cord/jobEntry';
 
 type UpdateJobPostInput = z.infer<typeof UpdateJobPostSchema>;
 type JobQueryInput = z.infer<typeof JobParamsSchema>;
@@ -79,6 +80,18 @@ export async function updateJobPost(
     })
     .where(eq(jobPosting.id, jobId))
     .returning();
+
+  // ✅ Sync entry state to CORD chain (non-blocking)
+  if (process.env.CORD_ENABLED === 'true') {
+    syncJobPostingToChain(jobId)
+      .then(() => {
+        console.log(`✅ [CORD] Entry updated for job posting ${jobId}`);
+      })
+      .catch((err) => {
+        console.error(`❌ [CORD] Failed to update entry for job posting ${jobId}:`, err);
+        // Don't fail the request - non-blocking
+      });
+  }
 
   return reply.send({
     statusCode: 200,
