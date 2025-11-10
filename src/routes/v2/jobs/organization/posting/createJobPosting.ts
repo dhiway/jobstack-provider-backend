@@ -8,6 +8,7 @@ import { ensureSchemaForJobPosting } from '@lib/schema';
 import { ErrorResponseSchema } from '@validation/schema/response';
 import { CreateJobPostSchema } from '../../schema/request';
 import { JobParamsSchema } from '@validation/schema/jobs/request';
+import { syncJobPostingToChain } from '@lib/cord/jobEntry';
 
 type CreateJobPostInput = z.infer<typeof CreateJobPostSchema>;
 type JobQueryInput = z.infer<typeof JobParamsSchema>;
@@ -73,6 +74,18 @@ export async function createJobPost(
     return reply
       .status(schemaErrorResponse.data.statusCode)
       .send(schemaErrorResponse);
+  }
+
+  // ✅ Create registry entry on CORD chain (non-blocking)
+  if (process.env.CORD_ENABLED === 'true') {
+    syncJobPostingToChain(newJobPost.id)
+      .then(() => {
+        console.log(`✅ [CORD] Entry created for job posting ${newJobPost.id}`);
+      })
+      .catch((err) => {
+        console.error(`❌ [CORD] Failed to create entry for job posting ${newJobPost.id}:`, err);
+        // Don't fail the request - non-blocking
+      });
   }
 
   return reply.status(201).send({

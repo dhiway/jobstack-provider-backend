@@ -7,6 +7,7 @@ import { z } from 'zod/v4';
 import { jobPosting } from '@db/schema';
 import { sendWhatsAppMessage } from '@lib/whatsapp-messager';
 import { createCordAccountForOrganization } from '@lib/cord/account';
+import { syncJobPostingToChain } from '@lib/cord/jobEntry';
 
 export const CreateJobPostingRequestSchema = z.object({
   title: z.string(),
@@ -145,6 +146,18 @@ const createJobPosting = async (
       } catch (err) {
         console.error('Whatsapp message failed', err);
       }
+    }
+
+    // ✅ Create registry entry on CORD chain (non-blocking)
+    if (process.env.CORD_ENABLED === 'true') {
+      syncJobPostingToChain(newJobPosting[0].id)
+        .then(() => {
+          console.log(`✅ [CORD] Entry created for job posting ${newJobPosting[0].id}`);
+        })
+        .catch((err) => {
+          console.error(`❌ [CORD] Failed to create entry for job posting ${newJobPosting[0].id}:`, err);
+          // Don't fail the request - non-blocking
+        });
     }
 
     return reply.status(200).send({
