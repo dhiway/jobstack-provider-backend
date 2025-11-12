@@ -1,8 +1,13 @@
 import * as Cord from '@cord.network/sdk';
 import { retryWithBackoff } from './utils';
+import { CordLogger, getCordLogger } from './logger';
 
-export async function createDidForUser(account: any): Promise<string> {
-  console.log(`📝 Creating DID for ${account.address}...`);
+export async function createDidForUser(
+  account: any,
+  logger?: CordLogger
+): Promise<string> {
+  const log = logger || getCordLogger();
+  log.debug({ address: account.address }, `📝 Creating DID for ${account.address}...`);
   
   // Try to create DID on-chain first
   // The DID module will load lazily when accessed
@@ -24,7 +29,7 @@ export async function createDidForUser(account: any): Promise<string> {
           didModule = api.tx.did;
         } catch (err) {
           // Module doesn't exist on this network
-          console.log(`⚠️  DID pallet not available on this network. Using account address as DID identifier.`);
+          log.warn({ address: account.address }, `⚠️  DID pallet not available on this network. Using account address as DID identifier.`);
           return account.address;
         }
         
@@ -35,7 +40,7 @@ export async function createDidForUser(account: any): Promise<string> {
           didModule = api.tx.did;
           
           if (!didModule || !didModule.createFromAccount) {
-            console.log(`⚠️  DID pallet createFromAccount not available. Using account address as DID identifier.`);
+            log.warn({ address: account.address }, `⚠️  DID pallet createFromAccount not available. Using account address as DID identifier.`);
             return account.address;
           }
         }
@@ -61,10 +66,10 @@ export async function createDidForUser(account: any): Promise<string> {
                 return;
               }
               if (status.isInBlock) {
-                console.log(`✅ DID created in block: ${status.asInBlock}`);
+                log.debug({ address: account.address, block: status.asInBlock }, `✅ DID created in block: ${status.asInBlock}`);
               } else if (status.isFinalized) {
                 clearTimeout(timeout);
-                console.log(`✅ DID creation finalized: ${status.asFinalized}`);
+                log.debug({ address: account.address, block: status.asFinalized }, `✅ DID creation finalized: ${status.asFinalized}`);
                 resolve();
               }
             }
@@ -76,7 +81,7 @@ export async function createDidForUser(account: any): Promise<string> {
 
         // DID identifier is derived from account address
         const didIdentifier = account.address;
-        console.log(`✅ DID created: ${didIdentifier}`);
+        log.info({ address: account.address, didIdentifier }, `✅ DID created: ${didIdentifier}`);
         
         return didIdentifier;
       },
@@ -86,12 +91,16 @@ export async function createDidForUser(account: any): Promise<string> {
         maxDelay: 10000,
         backoffMultiplier: 2,
         errorMessage: 'DID creation failed',
+        logger: log,
       }
     );
   } catch (error: any) {
     // If DID creation fails for any reason, fall back to using account address
     const errorMsg = error?.message || 'Unknown error';
-    console.log(`⚠️  DID creation failed, using account address as DID identifier: ${errorMsg}`);
+    log.warn(
+      { address: account.address, error: errorMsg },
+      `⚠️  DID creation failed, using account address as DID identifier: ${errorMsg}`
+    );
     return account.address;
   }
 }

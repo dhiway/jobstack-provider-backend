@@ -8,6 +8,7 @@ import { jobPosting } from '@db/schema';
 import { sendWhatsAppMessage } from '@lib/whatsapp-messager';
 import { createCordAccountForOrganization } from '@lib/cord/account';
 import { syncJobPostingToChain } from '@lib/cord/jobEntry';
+import { createLoggerFromFastify } from '@lib/cord/logger';
 
 export const CreateJobPostingRequestSchema = z.object({
   title: z.string(),
@@ -98,20 +99,25 @@ const createJobPosting = async (
       });
 
       if (!existingCordAccount) {
-        createCordAccountForOrganization(org.id, org.slug || org.id.slice(0, 8))
+        const cordLogger = createLoggerFromFastify(request.log);
+        createCordAccountForOrganization(org.id, org.slug || org.id.slice(0, 8), cordLogger)
           .then(({ profileId, registryId, address }) => {
-            console.log(`✅ [CORD] Account, profile, and registry created for org ${org.id}`);
-            console.log(`   Profile ID: ${profileId}`);
-            console.log(`   Registry ID: ${registryId}`);
-            console.log(`   CORD Address: ${address}`);
+            request.log.info(
+              { orgId: org.id, profileId, registryId, address },
+              `✅ [CORD] Account, profile, and registry created for org ${org.id}`
+            );
           })
           .catch((err) => {
-            console.error(`❌ [CORD] Failed to create account/registry for org ${org.id}:`, err);
-            console.error(`   Error details:`, {
-              message: err?.message,
-              stack: err?.stack,
-              name: err?.name,
-            });
+            request.log.error(
+              {
+                err,
+                orgId: org.id,
+                errorMessage: err?.message,
+                errorStack: err?.stack,
+                errorName: err?.name,
+              },
+              `❌ [CORD] Failed to create account/registry for org ${org.id}`
+            );
             // Don't fail organization creation
           });
       }
@@ -150,12 +156,24 @@ const createJobPosting = async (
 
     // ✅ Create registry entry on CORD chain (non-blocking)
     if (process.env.CORD_ENABLED === 'true') {
-      syncJobPostingToChain(newJobPosting[0].id)
+      const cordLogger = createLoggerFromFastify(request.log);
+      syncJobPostingToChain(newJobPosting[0].id, cordLogger)
         .then(() => {
-          console.log(`✅ [CORD] Entry created for job posting ${newJobPosting[0].id}`);
+          request.log.info(
+            { jobPostingId: newJobPosting[0].id },
+            `✅ [CORD] Entry created for job posting ${newJobPosting[0].id}`
+          );
         })
         .catch((err) => {
-          console.error(`❌ [CORD] Failed to create entry for job posting ${newJobPosting[0].id}:`, err);
+          request.log.error(
+            {
+              err,
+              jobPostingId: newJobPosting[0].id,
+              errorMessage: err?.message,
+              errorStack: err?.stack,
+            },
+            `❌ [CORD] Failed to create entry for job posting ${newJobPosting[0].id}`
+          );
           // Don't fail the request - non-blocking
         });
     }

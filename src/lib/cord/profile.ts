@@ -1,13 +1,18 @@
 import * as Cord from '@cord.network/sdk';
 import { computeProfileDokenId } from 'doken-precomputer';
 import { retryWithBackoff } from './utils';
+import { CordLogger, getCordLogger } from './logger';
 
 interface RawProfileData {
   pub_name: string;
 }
 
-async function getExistingProfile(address: string): Promise<string | null> {
-  console.log(`🔍 Fetching profile from chain for ${address}...`);
+async function getExistingProfile(
+  address: string,
+  logger?: CordLogger
+): Promise<string | null> {
+  const log = logger || getCordLogger();
+  log.debug({ address }, `🔍 Fetching profile from chain for ${address}...`);
   const api = Cord.ConfigService.get('api');
   if (!api) return null;
   
@@ -17,15 +22,17 @@ async function getExistingProfile(address: string): Promise<string | null> {
     return null;
   }
 
-  console.log(`✅ Profile found: ${profileDokenId}`);
+  log.debug({ address, profileDokenId }, `✅ Profile found: ${profileDokenId}`);
   return profileDokenId;
 }
 
 export async function createProfileOnChain(
   account: any,
-  profileData: RawProfileData
+  profileData: RawProfileData,
+  logger?: CordLogger
 ): Promise<string> {
-  console.log(`📝 Creating profile for ${account.address}...`);
+  const log = logger || getCordLogger();
+  log.debug({ address: account.address }, `📝 Creating profile for ${account.address}...`);
 
   return retryWithBackoff(
     async () => {
@@ -36,16 +43,16 @@ export async function createProfileOnChain(
 
       // Create profile on chain
       await Cord.Profile.dispatchSetProfileToChain(hashedProfileData, account);
-      console.log('✅ Profile created successfully');
+      log.debug({ address: account.address }, '✅ Profile created successfully');
 
       // Query for profile with retry for profile ID
       let retries = 5;
       while (retries > 0) {
         try {
-          const profileId = await getExistingProfile(account.address);
+          const profileId = await getExistingProfile(account.address, log);
 
           if (profileId) {
-            console.log(`✅ Profile ID confirmed: ${profileId}`);
+            log.info({ address: account.address, profileId }, `✅ Profile ID confirmed: ${profileId}`);
             return profileId;
           }
 
@@ -71,6 +78,7 @@ export async function createProfileOnChain(
       maxDelay: 10000,
       backoffMultiplier: 2,
       errorMessage: 'Profile creation failed',
+      logger: log,
     }
   );
 }

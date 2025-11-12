@@ -2,6 +2,7 @@ import { auth } from '@lib/auth';
 import { FastifyPluginAsync } from 'fastify';
 import { createCordAccountForOrganization } from '@lib/cord/account';
 import { db } from '@db/setup';
+import { createLoggerFromFastify } from '@lib/cord/logger';
 
 const AuthRoutes: FastifyPluginAsync = async (fastify): Promise<void> => {
   fastify.route({
@@ -58,7 +59,7 @@ const AuthRoutes: FastifyPluginAsync = async (fastify): Promise<void> => {
               const orgId = bodyData?.id;
               
               if (orgId) {
-                console.log(`🔍 [CORD] Detected organization creation for org ${orgId}, checking if CORD account needed...`);
+                request.log.debug({ orgId }, `🔍 [CORD] Detected organization creation for org ${orgId}, checking if CORD account needed...`);
                 
                 // Check if organization already has a CORD account
                 const existingCordAccount = await db.query.organizationCordAccount.findFirst({
@@ -73,34 +74,48 @@ const AuthRoutes: FastifyPluginAsync = async (fastify): Promise<void> => {
 
                   if (org) {
                     const orgSlug = org.slug || org.id.slice(0, 8);
-                    createCordAccountForOrganization(orgId, orgSlug)
+                    const cordLogger = createLoggerFromFastify(request.log);
+                    createCordAccountForOrganization(orgId, orgSlug, cordLogger)
                       .then(({ profileId, registryId, address }) => {
-                        console.log(`✅ [CORD] Account, profile, and registry created for org ${orgId}`);
-                        console.log(`   Profile ID: ${profileId}`);
-                        console.log(`   Registry ID: ${registryId}`);
-                        console.log(`   CORD Address: ${address}`);
+                        request.log.info(
+                          { orgId, profileId, registryId, address },
+                          `✅ [CORD] Account, profile, and registry created for org ${orgId}`
+                        );
                       })
                       .catch((err) => {
-                        console.error(`❌ [CORD] Failed to create account/registry for org ${orgId}:`, err);
-                        console.error(`   Error details:`, {
-                          message: err?.message,
-                          stack: err?.stack,
-                          name: err?.name,
-                        });
+                        request.log.error(
+                          {
+                            err,
+                            orgId,
+                            errorMessage: err?.message,
+                            errorStack: err?.stack,
+                            errorName: err?.name,
+                          },
+                          `❌ [CORD] Failed to create account/registry for org ${orgId}`
+                        );
                       });
                   } else {
-                    console.log(`⚠️  [CORD] Organization ${orgId} not found in database, skipping CORD account creation`);
+                    request.log.warn({ orgId }, `⚠️  [CORD] Organization ${orgId} not found in database, skipping CORD account creation`);
                   }
                 } else {
-                  console.log(`ℹ️  [CORD] Organization ${orgId} already has a CORD account`);
+                  request.log.debug({ orgId }, `ℹ️  [CORD] Organization ${orgId} already has a CORD account`);
                 }
               } else {
-                console.log(`⚠️  [CORD] Could not extract organization ID from response`);
-                console.log(`   Response body:`, responseBody.substring(0, 500));
+                request.log.warn(
+                  { responseBody: responseBody.substring(0, 500) },
+                  `⚠️  [CORD] Could not extract organization ID from response`
+                );
               }
             } catch (err: any) {
-              console.error(`❌ [CORD] Error processing organization creation response:`, err);
-              console.error(`   Response body:`, responseBody?.substring(0, 500));
+              request.log.error(
+                {
+                  err,
+                  errorMessage: err?.message,
+                  errorStack: err?.stack,
+                  responseBody: responseBody?.substring(0, 500),
+                },
+                `❌ [CORD] Error processing organization creation response`
+              );
             }
           }
         } else {

@@ -2,6 +2,7 @@ import * as Cord from '@cord.network/sdk';
 import { createAccount } from '@cord.network/vc-export';
 import { computeEntryDokenId } from 'doken-precomputer';
 import { retryWithBackoff } from './utils';
+import { CordLogger, getCordLogger } from './logger';
 
 export interface EntryResult {
   entryId: string;
@@ -25,9 +26,11 @@ export async function createEntryOnChain(
     metadata?: any;
     location?: any;
     contact?: any;
-  }
+  },
+  logger?: CordLogger
 ): Promise<EntryResult> {
-  console.log(`📝 Creating entry for job posting ${jobPostingData.id}...`);
+  const log = logger || getCordLogger();
+  log.debug({ jobPostingId: jobPostingData.id }, `📝 Creating entry for job posting ${jobPostingData.id}...`);
   
   return retryWithBackoff(
     async () => {
@@ -93,10 +96,10 @@ export async function createEntryOnChain(
             }
             
             if (status.isInBlock) {
-              console.log(`✅ Entry created in block: ${status.asInBlock}`);
+              log.debug({ jobPostingId: jobPostingData.id, block: status.asInBlock }, `✅ Entry created in block: ${status.asInBlock}`);
             } else if (status.isFinalized) {
               clearTimeout(timeout);
-              console.log(`✅ Entry creation finalized: ${status.asFinalized}`);
+              log.debug({ jobPostingId: jobPostingData.id, block: status.asFinalized }, `✅ Entry creation finalized: ${status.asFinalized}`);
               resolve();
             }
           })
@@ -127,7 +130,7 @@ export async function createEntryOnChain(
         throw new Error('Failed to determine entry ID');
       }
 
-      console.log(`✅ Entry created with ID: ${entryDokenId}`);
+      log.info({ jobPostingId: jobPostingData.id, entryId: entryDokenId }, `✅ Entry created with ID: ${entryDokenId}`);
 
       return {
         entryId: entryDokenId,
@@ -140,6 +143,7 @@ export async function createEntryOnChain(
       maxDelay: 10000,
       backoffMultiplier: 2,
       errorMessage: 'Entry creation failed',
+      logger: log,
     }
   );
 }
@@ -162,9 +166,11 @@ export async function updateEntryOnChain(
     metadata?: any;
     location?: any;
     contact?: any;
-  }
+  },
+  logger?: CordLogger
 ): Promise<EntryResult> {
-  console.log(`🔄 Updating entry ${entryId} for job posting ${jobPostingData.id}...`);
+  const log = logger || getCordLogger();
+  log.debug({ jobPostingId: jobPostingData.id, entryId }, `🔄 Updating entry ${entryId} for job posting ${jobPostingData.id}...`);
   
   return retryWithBackoff(
     async () => {
@@ -213,10 +219,10 @@ export async function updateEntryOnChain(
               return;
             }
             if (status.isInBlock) {
-              console.log(`✅ Entry updated in block: ${status.asInBlock}`);
+              log.debug({ jobPostingId: jobPostingData.id, entryId, block: status.asInBlock }, `✅ Entry updated in block: ${status.asInBlock}`);
             } else if (status.isFinalized) {
               clearTimeout(timeout);
-              console.log(`✅ Entry update finalized: ${status.asFinalized}`);
+              log.debug({ jobPostingId: jobPostingData.id, entryId, block: status.asFinalized }, `✅ Entry update finalized: ${status.asFinalized}`);
               resolve();
             }
           })
@@ -226,7 +232,7 @@ export async function updateEntryOnChain(
           });
       });
 
-      console.log(`✅ Entry updated: ${entryId}`);
+      log.info({ jobPostingId: jobPostingData.id, entryId }, `✅ Entry updated: ${entryId}`);
 
       return {
         entryId,
@@ -239,6 +245,7 @@ export async function updateEntryOnChain(
       maxDelay: 10000,
       backoffMultiplier: 2,
       errorMessage: 'Entry update failed',
+      logger: log,
     }
   );
 }
@@ -250,9 +257,11 @@ export async function updateEntryOnChain(
 export async function revokeEntryOnChain(
   mnemonic: string,
   registryId: string,
-  entryId: string
+  entryId: string,
+  logger?: CordLogger
 ): Promise<void> {
-  console.log(`🚫 Revoking entry ${entryId}...`);
+  const log = logger || getCordLogger();
+  log.debug({ entryId }, `🚫 Revoking entry ${entryId}...`);
   
   return retryWithBackoff(
     async () => {
@@ -282,10 +291,10 @@ export async function revokeEntryOnChain(
               return;
             }
             if (status.isInBlock) {
-              console.log(`✅ Entry revoked in block: ${status.asInBlock}`);
+              log.debug({ entryId, block: status.asInBlock }, `✅ Entry revoked in block: ${status.asInBlock}`);
             } else if (status.isFinalized) {
               clearTimeout(timeout);
-              console.log(`✅ Entry revocation finalized: ${status.asFinalized}`);
+              log.debug({ entryId, block: status.asFinalized }, `✅ Entry revocation finalized: ${status.asFinalized}`);
               resolve();
             }
           })
@@ -295,7 +304,7 @@ export async function revokeEntryOnChain(
           });
       });
 
-      console.log(`✅ Entry revoked: ${entryId}`);
+      log.info({ entryId }, `✅ Entry revoked: ${entryId}`);
     },
     {
       maxRetries: 3,
@@ -303,6 +312,7 @@ export async function revokeEntryOnChain(
       maxDelay: 10000,
       backoffMultiplier: 2,
       errorMessage: 'Entry revocation failed',
+      logger: log,
     }
   );
 }
@@ -314,9 +324,11 @@ export async function revokeEntryOnChain(
 export async function reinstateEntryOnChain(
   mnemonic: string,
   registryId: string,
-  entryId: string
+  entryId: string,
+  logger?: CordLogger
 ): Promise<void> {
-  console.log(`✅ Reinstating entry ${entryId}...`);
+  const log = logger || getCordLogger();
+  log.debug({ entryId }, `✅ Reinstating entry ${entryId}...`);
   
   return retryWithBackoff(
     async () => {
@@ -346,10 +358,10 @@ export async function reinstateEntryOnChain(
               return;
             }
             if (status.isInBlock) {
-              console.log(`✅ Entry reinstated in block: ${status.asInBlock}`);
+              log.debug({ entryId, block: status.asInBlock }, `✅ Entry reinstated in block: ${status.asInBlock}`);
             } else if (status.isFinalized) {
               clearTimeout(timeout);
-              console.log(`✅ Entry reinstatement finalized: ${status.asFinalized}`);
+              log.debug({ entryId, block: status.asFinalized }, `✅ Entry reinstatement finalized: ${status.asFinalized}`);
               resolve();
             }
           })
@@ -359,7 +371,7 @@ export async function reinstateEntryOnChain(
           });
       });
 
-      console.log(`✅ Entry reinstated: ${entryId}`);
+      log.info({ entryId }, `✅ Entry reinstated: ${entryId}`);
     },
     {
       maxRetries: 3,
@@ -367,6 +379,7 @@ export async function reinstateEntryOnChain(
       maxDelay: 10000,
       backoffMultiplier: 2,
       errorMessage: 'Entry reinstatement failed',
+      logger: log,
     }
   );
 }

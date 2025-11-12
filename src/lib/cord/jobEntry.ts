@@ -9,6 +9,7 @@ import {
   reinstateEntryOnChain,
 } from './entry';
 import { eq } from 'drizzle-orm';
+import { CordLogger, getCordLogger } from './logger';
 
 /**
  * Get organization's CORD registry info
@@ -32,9 +33,14 @@ async function getOrgRegistryInfo(orgId: string) {
  * Create or update registry entry for a job posting
  * This function handles the synchronization between job posting state and CORD entry state
  */
-export async function syncJobPostingToChain(jobPostingId: string) {
+export async function syncJobPostingToChain(
+  jobPostingId: string,
+  logger?: CordLogger
+) {
+  const log = logger || getCordLogger();
+  
   if (process.env.CORD_ENABLED !== 'true') {
-    console.log('⚠️  CORD not enabled, skipping entry sync');
+    log.debug({ jobPostingId }, '⚠️  CORD not enabled, skipping entry sync');
     return;
   }
 
@@ -61,7 +67,7 @@ export async function syncJobPostingToChain(jobPostingId: string) {
       if (posting.status === 'archived') {
         // Archive = revoke entry if not already revoked
         if (!existingEntry.revoked) {
-          await revokeEntryOnChain(mnemonic, registryId, existingEntry.cordEntryId);
+          await revokeEntryOnChain(mnemonic, registryId, existingEntry.cordEntryId, log);
           await db
             .update(jobPostingCordEntry)
             .set({ 
@@ -74,7 +80,7 @@ export async function syncJobPostingToChain(jobPostingId: string) {
         // Non-archived status - update entry hash or reinstate if revoked
         if (existingEntry.revoked) {
           // Reinstate if previously revoked
-          await reinstateEntryOnChain(mnemonic, registryId, existingEntry.cordEntryId);
+          await reinstateEntryOnChain(mnemonic, registryId, existingEntry.cordEntryId, log);
         }
         
         // Update entry with new hash (reflects current status)
@@ -92,7 +98,8 @@ export async function syncJobPostingToChain(jobPostingId: string) {
             metadata: posting.metadata,
             location: posting.location,
             contact: posting.contact,
-          }
+          },
+          log
         );
         
         await db
@@ -119,7 +126,8 @@ export async function syncJobPostingToChain(jobPostingId: string) {
           metadata: posting.metadata,
           location: posting.location,
           contact: posting.contact,
-        }
+        },
+        log
       );
       
       await db.insert(jobPostingCordEntry).values({
@@ -131,9 +139,12 @@ export async function syncJobPostingToChain(jobPostingId: string) {
       });
     }
 
-    console.log(`✅ Synced job posting ${jobPostingId} to CORD chain`);
+    log.info({ jobPostingId }, `✅ Synced job posting ${jobPostingId} to CORD chain`);
   } catch (error: any) {
-    console.error(`❌ Failed to sync job posting ${jobPostingId} to chain:`, error.message);
+    log.error(
+      { err: error, jobPostingId, errorMessage: error.message, errorStack: error.stack },
+      `❌ Failed to sync job posting ${jobPostingId} to chain: ${error.message}`
+    );
     // Don't throw - allow job posting operations to continue even if CORD fails
   }
 }
