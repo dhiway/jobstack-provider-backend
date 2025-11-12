@@ -9,6 +9,7 @@ import { member, organization } from '@db/schema/auth';
 import { eq, and } from 'drizzle-orm';
 import { jobPosting } from '@db/schema/job';
 import { syncJobPostingToChain } from '@lib/cord/jobEntry';
+import { createLoggerFromFastify } from '@lib/cord/logger';
 
 type UpdateJobPostInput = z.infer<typeof UpdateJobPostSchema>;
 type JobQueryInput = z.infer<typeof JobParamsSchema>;
@@ -83,12 +84,24 @@ export async function updateJobPost(
 
   // ✅ Sync entry state to CORD chain (non-blocking)
   if (process.env.CORD_ENABLED === 'true') {
-    syncJobPostingToChain(jobId)
+    const cordLogger = createLoggerFromFastify(request.log);
+    syncJobPostingToChain(jobId, cordLogger)
       .then(() => {
-        console.log(`✅ [CORD] Entry updated for job posting ${jobId}`);
+        request.log.info(
+          { jobPostingId: jobId },
+          `✅ [CORD] Entry updated for job posting ${jobId}`
+        );
       })
       .catch((err) => {
-        console.error(`❌ [CORD] Failed to update entry for job posting ${jobId}:`, err);
+        request.log.error(
+          {
+            err,
+            jobPostingId: jobId,
+            errorMessage: err?.message,
+            errorStack: err?.stack,
+          },
+          `❌ [CORD] Failed to update entry for job posting ${jobId}`
+        );
         // Don't fail the request - non-blocking
       });
   }

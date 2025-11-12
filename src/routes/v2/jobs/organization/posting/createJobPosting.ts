@@ -9,6 +9,7 @@ import { ErrorResponseSchema } from '@validation/schema/response';
 import { CreateJobPostSchema } from '../../schema/request';
 import { JobParamsSchema } from '@validation/schema/jobs/request';
 import { syncJobPostingToChain } from '@lib/cord/jobEntry';
+import { createLoggerFromFastify } from '@lib/cord/logger';
 
 type CreateJobPostInput = z.infer<typeof CreateJobPostSchema>;
 type JobQueryInput = z.infer<typeof JobParamsSchema>;
@@ -78,12 +79,24 @@ export async function createJobPost(
 
   // ✅ Create registry entry on CORD chain (non-blocking)
   if (process.env.CORD_ENABLED === 'true') {
-    syncJobPostingToChain(newJobPost.id)
+    const cordLogger = createLoggerFromFastify(request.log);
+    syncJobPostingToChain(newJobPost.id, cordLogger)
       .then(() => {
-        console.log(`✅ [CORD] Entry created for job posting ${newJobPost.id}`);
+        request.log.info(
+          { jobPostingId: newJobPost.id },
+          `✅ [CORD] Entry created for job posting ${newJobPost.id}`
+        );
       })
       .catch((err) => {
-        console.error(`❌ [CORD] Failed to create entry for job posting ${newJobPost.id}:`, err);
+        request.log.error(
+          {
+            err,
+            jobPostingId: newJobPost.id,
+            errorMessage: err?.message,
+            errorStack: err?.stack,
+          },
+          `❌ [CORD] Failed to create entry for job posting ${newJobPost.id}`
+        );
         // Don't fail the request - non-blocking
       });
   }

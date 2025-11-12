@@ -2,9 +2,15 @@ import * as Cord from '@cord.network/sdk';
 import { createAccount } from '@cord.network/vc-export';
 import { computeRegistryDokenId } from 'doken-precomputer';
 import { retryWithBackoff } from './utils';
+import { CordLogger, getCordLogger } from './logger';
 
-export async function createRegistryOnChain(mnemonic: string, schema?: object) {
-  console.log('\n🔄 Creating registry...');
+export async function createRegistryOnChain(
+  mnemonic: string,
+  schema?: object,
+  logger?: CordLogger
+) {
+  const log = logger || getCordLogger();
+  log.debug({}, '🔄 Creating registry...');
   
   return retryWithBackoff(
     async () => {
@@ -43,7 +49,7 @@ export async function createRegistryOnChain(mnemonic: string, schema?: object) {
         issuerAccount as Cord.CordKeyringPair
       );
 
-      console.log(`✅ Registry created with URI: ${registryDokenId}`);
+      log.info({ registryDokenId }, `✅ Registry created with URI: ${registryDokenId}`);
 
       return {
         message: 'Registry created successfully',
@@ -57,6 +63,7 @@ export async function createRegistryOnChain(mnemonic: string, schema?: object) {
       maxDelay: 10000,
       backoffMultiplier: 2,
       errorMessage: 'Registry creation failed',
+      logger: log,
     }
   );
 }

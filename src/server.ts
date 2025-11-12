@@ -15,6 +15,7 @@ import AuthRoutes from '@routes/auth';
 import HomepageRoute from '@routes/home';
 import v2Routes from '@routes/v2';
 import { initializeCordConnection } from '@lib/cord/init';
+import { setCordLogger, createLoggerFromFastify } from '@lib/cord/logger';
 
 const env_port = parseInt(process.env.BACKEND_PORT || '3001');
 const port = isNaN(env_port) ? 3001 : env_port;
@@ -91,6 +92,10 @@ async function main() {
     timeWindow: '1 minute',
     skipOnError: true,
   });
+
+  // Initialize CORD logger with Fastify logger
+  const cordLogger = createLoggerFromFastify(app.log);
+  setCordLogger(cordLogger);
 
   // Application Routes Setup
   await app.register(HomepageRoute);

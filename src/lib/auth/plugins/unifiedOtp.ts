@@ -8,6 +8,7 @@ import { createCordAccountForUser } from '@lib/cord/account';
 import { db } from '@db/setup';
 import { userCordAccount } from '@db/schema';
 import { eq } from 'drizzle-orm';
+import { getCordLogger } from '@lib/cord/logger';
 
 const CheckUserInput = z.object({
   email: z.email('Please enter a valid Email').optional().meta({
@@ -713,14 +714,24 @@ export const unifiedOtp = ({
             });
 
             if (!existingCordAccount) {
-              createCordAccountForUser(user.id, user.name || name || 'User')
+              const cordLogger = getCordLogger();
+              createCordAccountForUser(user.id, user.name || name || 'User', cordLogger)
                 .then(({ didId, address }) => {
-                  console.log(`✅ [CORD] Account and DID created for user ${user.id}`);
-                  console.log(`   DID: ${didId}`);
-                  console.log(`   CORD Address: ${address}`);
+                  cordLogger.info(
+                    { userId: user.id, didId, address },
+                    `✅ [CORD] Account and DID created for user ${user.id}`
+                  );
                 })
                 .catch((err) => {
-                  console.error(`❌ [CORD] Failed to create account/DID for user ${user.id}:`, err);
+                  cordLogger.error(
+                    {
+                      err,
+                      userId: user.id,
+                      errorMessage: err?.message,
+                      errorStack: err?.stack,
+                    },
+                    `❌ [CORD] Failed to create account/DID for user ${user.id}`
+                  );
                   // Don't fail user creation
                 });
             }

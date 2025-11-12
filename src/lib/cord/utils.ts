@@ -1,4 +1,5 @@
 import * as Cord from '@cord.network/sdk';
+import { CordLogger, getCordLogger } from './logger';
 
 /**
  * Retry utility with exponential backoff
@@ -11,6 +12,7 @@ export async function retryWithBackoff<T>(
     maxDelay?: number;
     backoffMultiplier?: number;
     errorMessage?: string;
+    logger?: CordLogger;
   } = {}
 ): Promise<T> {
   const {
@@ -19,6 +21,7 @@ export async function retryWithBackoff<T>(
     maxDelay = 30000,
     backoffMultiplier = 2,
     errorMessage = 'Operation failed after retries',
+    logger = getCordLogger(),
   } = options;
 
   let lastError: Error | null = null;
@@ -36,7 +39,8 @@ export async function retryWithBackoff<T>(
         );
       }
 
-      console.log(
+      logger.debug(
+        { attempt: attempt + 1, maxRetries, delay },
         `⏳ Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms...`
       );
       await new Promise((resolve) => setTimeout(resolve, delay));
