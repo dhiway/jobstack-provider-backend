@@ -7,6 +7,7 @@ import {
 import {
   AssociationParamsSchema,
   fetchAssociationOverview,
+  fetchAssociationOverviewQuerySchema,
 } from './fetchAssociationOverview';
 
 export const associationProviderRoutes: FastifyPluginAsyncZod = async function (
@@ -27,7 +28,7 @@ export const associationProviderRoutes: FastifyPluginAsyncZod = async function (
     preHandler: authMiddleware,
     handler: fetchAssociationOverview,
     schema: {
-      querystring: ListAssociationsQuerySchema,
+      querystring: fetchAssociationOverviewQuerySchema,
       params: AssociationParamsSchema,
     },
   });

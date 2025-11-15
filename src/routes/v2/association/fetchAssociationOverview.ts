@@ -4,26 +4,29 @@ import { eq, and, sql } from 'drizzle-orm';
 import { db } from '@db/setup';
 import { organization } from '@db/schema/auth';
 
-export const ListAssociationsQuerySchema = z.object({
-  page: z.string().optional(),
-  limit: z.string().optional(),
-  search: z.string().optional(),
-  sortBy: z.union([z.literal('name'), z.literal('createdAt')]).optional(),
-  sortOrder: z.union([z.literal('asc'), z.literal('desc')]).optional(),
+export const fetchAssociationOverviewQuerySchema = z.object({
+  applicationStatus: z.string().optional(),
 });
+
 export const AssociationParamsSchema = z.object({
   slug: z.string().min(1),
 });
 
 type AssociationParamsInput = z.infer<typeof AssociationParamsSchema>;
+type AssociationQueryInput = z.infer<
+  typeof fetchAssociationOverviewQuerySchema
+>;
 
 export async function fetchAssociationOverview(
-  request: FastifyRequest<{ Params: AssociationParamsInput }>,
+  request: FastifyRequest<{
+    Params: AssociationParamsInput;
+    Querystring: AssociationQueryInput;
+  }>,
   reply: FastifyReply
 ) {
   try {
     const { slug } = request.params;
-
+    const applicationStatus = request.query.applicationStatus || '      ';
     // Verify association exists and is type = 'association'
     const assocRecord = await db
       .select({
@@ -134,6 +137,30 @@ export async function fetchAssociationOverview(
       .from(organization)
       .limit(1);
 
+    const [{ totalApplicationsByStatus }] = await db
+      .select({
+        totalApplicationsByStatus: sql<number>`
+        cast(
+          (
+            select count(*)
+            from job_application ja
+            where ja.application_status = ${applicationStatus}
+            and ja.job_id in (
+              select jp.id
+              from job_posting jp
+              where jp.organization_id in (
+                select o.id
+                from organization o
+                where o.type ~ ${pattern}
+              )
+            )
+          ) as int
+        )
+      `,
+      })
+      .from(organization)
+      .limit(1);
+
     return reply.send({
       statusCode: 200,
       message: 'Association overview fetched successfully',
@@ -143,6 +170,7 @@ export async function fetchAssociationOverview(
         totalOpenings: Number(totalOpenings ?? 0),
         totalMSMEs: Number(totalMSMEs ?? 0),
         totalApplications: Number(totalApplications ?? 0),
+        totalApplicationsByStatus: Number(totalApplicationsByStatus ?? 0),
       },
     });
   } catch (err) {
