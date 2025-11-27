@@ -14,6 +14,9 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
+    "db:studio:sandbox": "drizzle-kit studio --config drizzle.sandbox.config.ts --port 4984",
+    "sandbox:setup": "tsx src/scripts/sandbox/index.ts setup",
+    "sandbox:sync": "tsx src/scripts/sandbox/index.ts sync",
     "test": "echo \"No tests defined\" && exit 0"
   },
   "keywords": [

@@ -61,6 +61,21 @@
 
 ---
 
+## Sandbox Database (for MindsDB Integration)
+
+| Variable                  | Description                                          | Example                                                              |
+| ------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------- |
+| `SANDBOX_POSTGRES_USER`   | Username for the sandbox PostgreSQL instance.         | `sandbox_user`                                                        |
+| `SANDBOX_POSTGRES_PASSWORD` | Password for the sandbox PostgreSQL user.           | `sandbox_password`                                                    |
+| `SANDBOX_POSTGRES_DB`     | Name of the sandbox database.                        | `jobstack_provider_sandbox`                                           |
+| `SANDBOX_DATABASE_PORT`   | Sandbox PostgreSQL port (default: 5433).            | `5433`                                                                |
+| `SANDBOX_DATABASE_URL`    | Connection URL for sandbox database.                 | `postgres://sandbox_user:sandbox_password@localhost:5433/jobstack_provider_sandbox` |
+| `SANDBOX_SALT`            | Salt for anonymization hashing (change in production). | `your-random-salt-string`                                           |
+
+**Note:** The sandbox database contains a sanitized replica of production data with all PII anonymized. See [Sandbox Database Setup](#-sandbox-database-setup) section for details.
+
+---
+
 ## Redis
 
 | Variable    | Description              | Example                  |
@@ -299,8 +314,169 @@ fastify.withTypeProvider<ZodTypeProvider>().route({
 
 ---
 
+## 🗄️ Sandbox Database Setup
+
+The sandbox database is a sanitized replica of the production database designed for safe integration with MindsDB and other analytics tools. All PII (Personally Identifiable Information) is anonymized using consistent hashing.
+
+### Features
+
+- **Separate Database Instance**: Isolated PostgreSQL database for analytics
+- **PII Anonymization**: All sensitive data is hashed/anonymized consistently
+- **Referential Integrity**: Foreign key relationships are maintained
+- **Scheduled Sync**: Can be automated via cron jobs
+
+### Setup Instructions
+
+1. **Start the sandbox database** (included in docker-compose):
+
+   ```bash
+   docker compose up sandbox-db -d
+   ```
+
+2. **Configure environment variables** in your `.env` file:
+
+   ```env
+   SANDBOX_DATABASE_URL=postgres://sandbox_user:sandbox_password@localhost:5433/jobstack_provider_sandbox
+   SANDBOX_SALT=your-random-salt-string-change-this-in-production
+   ```
+
+3. **Initialize the sandbox schema**:
+
+   ```bash
+   pnpm sandbox:setup
+   ```
+
+4. **Sync data with anonymization**:
+
+   ```bash
+   pnpm sandbox:sync
+   ```
+
+### What Data is Included/Excluded
+
+**Included Tables** (with sanitization):
+- `user` - anonymized email, phone_number, name, user_id
+- `organization` - kept as-is (non-PII)
+- `job_posting` - kept as-is (non-PII)
+- `job_application` - anonymized user_name, user_id, sanitized contact/location JSONB
+- `location` - anonymized address, pincode, GPS removed
+- `contact` - anonymized email, phone_number
+- `profile`, `member`, `team`, `team_member` - anonymized user_id references
+- `schema_definition`, `schema_link` - kept as-is
+
+**Excluded Tables** (sensitive data):
+- `account` - contains tokens/passwords
+- `verification` - contains sensitive verification data
+- `apikey` - contains API keys
+- `invitation` - contains emails
+
+### Anonymization Strategy
+
+- **Emails**: Hashed while preserving format (e.g., `abc123@def456.com`)
+- **Phone Numbers**: Hashed while preserving format (e.g., `+12-3456-7890`)
+- **Names**: Replaced with `User_[hash]`
+- **User IDs**: Hashed consistently to maintain referential integrity
+- **Addresses**: Replaced with `Address_[hash]`
+- **GPS Coordinates**: Removed completely
+- **JSONB Fields**: Recursively sanitized for nested PII
+
+### Automated Sync (Cron Job)
+
+To set up automated daily sync, add to your crontab:
+
+```bash
+# Sync sandbox database daily at 2 AM
+0 2 * * * cd /path/to/jobstack-provider-backend && pnpm sandbox:sync >> /var/log/sandbox-sync.log 2>&1
+```
+
+Or use a cron container in docker-compose (optional).
+
+---
+
+## 🔗 MindsDB Integration
+
+### Connecting MindsDB to Sandbox Database
+
+1. **Ensure sandbox database is running and synced**:
+
+   ```bash
+   docker compose up sandbox-db -d
+   pnpm sandbox:sync
+   ```
+
+2. **In MindsDB, create a PostgreSQL datasource**:
+
+   ```sql
+   CREATE DATABASE sandbox_db
+   WITH ENGINE = "postgres",
+   PARAMETERS = {
+     "host": "your-host-or-ip",
+     "port": 5433,
+     "database": "jobstack_provider_sandbox",
+     "user": "sandbox_user",
+     "password": "sandbox_password"
+   };
+   ```
+
+3. **Query the sandbox database**:
+
+   ```sql
+   SELECT * FROM sandbox_db.job_posting LIMIT 10;
+   SELECT * FROM sandbox_db.user LIMIT 10; -- Note: PII is anonymized
+   ```
+
+### Example MindsDB Queries
+
+```sql
+-- Analyze job postings by status
+SELECT status, COUNT(*) as count
+FROM sandbox_db.job_posting
+GROUP BY status;
+
+-- Analyze job applications over time
+SELECT DATE(created_at) as date, COUNT(*) as applications
+FROM sandbox_db.job_application
+GROUP BY DATE(created_at)
+ORDER BY date DESC;
+
+-- Organization statistics
+SELECT o.name, COUNT(DISTINCT jp.id) as job_postings, COUNT(DISTINCT ja.id) as applications
+FROM sandbox_db.organization o
+LEFT JOIN sandbox_db.job_posting jp ON jp.organization_id = o.id
+LEFT JOIN sandbox_db.job_application ja ON ja.job_id = jp.id
+GROUP BY o.id, o.name;
+```
+
+### Security Considerations
+
+- **Read-Only Access**: Grant MindsDB read-only access to the sandbox database
+- **Network Isolation**: Sandbox DB should be isolated from production network
+- **Regular Audits**: Periodically review what data is exposed
+- **Salt Rotation**: Consider rotating `SANDBOX_SALT` periodically (requires full resync)
+
+### Troubleshooting
+
+**Connection Issues**:
+- Verify sandbox-db container is running: `docker ps | grep sandbox-db`
+- Check connection string format in `SANDBOX_DATABASE_URL`
+- Ensure port 5433 is accessible (or configured port)
+
+**Sync Errors**:
+- Verify `DATABASE_URL` points to source database
+- Check `SANDBOX_SALT` is set
+- Review logs for specific table errors
+- Ensure source database is accessible
+
+**Data Not Appearing**:
+- Run `pnpm sandbox:sync` to refresh data
+- Check if tables exist: `docker exec -it jobstack-provider-sandbox-db psql -U sandbox_user -d jobstack_provider_sandbox -c "\dt"`
+- Verify source database has data
+
+---
+
 ## ✅ Recommended Practices
 
 - Use **Zod** for all request & response schemas.
 - Use `--env-file .env.*` custom env for custom environments.
 - Change the env keys before making the project opensource.
+- **Sandbox Database**: Regularly sync and audit what data is exposed to analytics tools.

@@ -90,6 +90,25 @@ services:
       retries: 20
     networks:
       - jobstack-provider-network-c
+  sandbox-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    container_name: jobstack-provider-sandbox-db
+    ports:
+      - '${SANDBOX_DATABASE_PORT:-5433}:5432'
+    environment:
+      POSTGRES_USER: ${SANDBOX_POSTGRES_USER:-sandbox_user}
+      POSTGRES_PASSWORD: ${SANDBOX_POSTGRES_PASSWORD:-sandbox_password}
+      POSTGRES_DB: ${SANDBOX_POSTGRES_DB:-jobstack_provider_sandbox}
+    volumes:
+      - jobstack-provider-sandbox-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${SANDBOX_POSTGRES_USER:-sandbox_user} -d ${SANDBOX_POSTGRES_DB:-jobstack_provider_sandbox}']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - jobstack-provider-network-c
 networks:
   jobstack-provider-network-c:
     name: jobstack-provider-network-c
@@ -99,3 +118,5 @@ volumes:
     name: jobstack-provider-db
   jobstack-provider-redis:
     name: jobstack-provider-redis
+  jobstack-provider-sandbox-db:
+    name: jobstack-provider-sandbox-db
