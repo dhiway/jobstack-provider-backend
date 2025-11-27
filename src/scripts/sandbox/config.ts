@@ -50,7 +50,7 @@ export const SANITIZATION_CONFIG: Record<string, TableConfig> = {
       { column: 'user_id', method: 'hash' },
     ],
     customTransform: (row) => {
-      // Sanitize JSONB fields
+      // Sanitize JSONB fields - only anonymize contact PII, keep location data as-is
       const sanitized = { ...row };
       
       if (sanitized.contact && typeof sanitized.contact === 'object') {
@@ -60,13 +60,7 @@ export const SANITIZATION_CONFIG: Record<string, TableConfig> = {
         sanitized.contact = contact;
       }
       
-      if (sanitized.location && typeof sanitized.location === 'object') {
-        const location = sanitized.location as Record<string, unknown>;
-        if (location.address) location.address = '[ANONYMIZED]';
-        if (location.pincode) location.pincode = '[ANONYMIZED]';
-        if (location.gps) delete location.gps;
-        sanitized.location = location;
-      }
+      // Keep location data as-is (no anonymization)
       
       return sanitized;
     },
@@ -75,18 +69,9 @@ export const SANITIZATION_CONFIG: Record<string, TableConfig> = {
   location: {
     include: true,
     anonymizeColumns: [
-      { column: 'address', method: 'hash' },
-      { column: 'pincode', method: 'hash' },
-      { column: 'user_id', method: 'hash' },
+      { column: 'user_id', method: 'hash' }, // Only anonymize user_id, keep location data as-is
     ],
-    customTransform: (row) => {
-      const sanitized = { ...row };
-      // Remove GPS coordinates
-      if (sanitized.gps) {
-        sanitized.gps = null;
-      }
-      return sanitized;
-    },
+    // Keep all location data (address, pincode, GPS) as-is - no anonymization
   },
 
   contact: {
@@ -115,12 +100,13 @@ export const SANITIZATION_CONFIG: Record<string, TableConfig> = {
       { column: 'user_id', method: 'hash' },
     ],
     customTransform: (row) => {
-      // Keep metadata structure but sanitize any PII within
+      // Keep metadata structure but sanitize only user-related PII (email, phone, name)
+      // Keep location-related data (address) as-is
       const sanitized = { ...row };
       if (sanitized.metadata && typeof sanitized.metadata === 'object') {
         const metadata = sanitized.metadata as Record<string, unknown>;
-        // Remove any potential PII fields from metadata
-        const piiFields = ['email', 'phone', 'phoneNumber', 'address', 'name'];
+        // Remove only user-related PII fields from metadata, keep location data
+        const piiFields = ['email', 'phone', 'phoneNumber', 'name'];
         piiFields.forEach((field) => {
           if (metadata[field]) {
             delete metadata[field];
