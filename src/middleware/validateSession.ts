@@ -1,6 +1,9 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { auth } from '@lib/auth';
 import { logActivity } from './logger';
+import { db } from '@db/setup';
+import { user } from '@db/schema';
+import { eq } from 'drizzle-orm';
 
 export async function authMiddleware(
   request: FastifyRequest,
@@ -26,6 +29,16 @@ export async function authMiddleware(
     },
     methods: ['PUT', 'POST', 'DELETE'],
   });
+
+  // Update last activity timestamp (fire and forget to not slow down requests)
+  db.update(user)
+    .set({
+      lastActivityAt: new Date(),
+    })
+    .where(eq(user.id, session.user.id))
+    .catch((err) => {
+      console.error('Failed to update lastActivityAt:', err);
+    });
 
   request.user = session.user;
 }

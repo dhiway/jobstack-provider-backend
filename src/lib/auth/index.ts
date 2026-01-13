@@ -72,6 +72,7 @@ export const auth = betterAuth({
       enabled: true,
       maxAge: 10 * 60,
     },
+    storeSessionInDatabase: true, // Enable database session storage
   },
   rateLimit: {
     enabled: false, // Does not work when session is not present. unpredictable. disabled till betterAuth fixes the approach
