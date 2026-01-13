@@ -4,6 +4,9 @@ import { type BetterAuthPlugin } from 'better-auth/types';
 import z from 'zod/v4';
 import { setSessionCookie } from './utils';
 import { createSSOAccount } from '@lib/sso-integration';
+import { db } from '@db/setup';
+import { user as userSchema, sessionHistory } from '@db/schema';
+import { eq } from 'drizzle-orm';
 
 const CheckUserInput = z.object({
   email: z.email('Please enter a valid Email').optional().meta({
@@ -718,6 +721,28 @@ export const unifiedOtp = ({
             ctx,
             rememberMe === false
           );
+
+          const now = new Date();
+
+          // Update user activity tracking on login using direct DB query
+          await db
+            .update(userSchema)
+            .set({
+              lastLoginAt: now,
+              lastActivityAt: now,
+            })
+            .where(eq(userSchema.id, user.id));
+
+          // Create session history entry for audit trail
+          await db.insert(sessionHistory).values({
+            sessionId: session.id,
+            userId: user.id,
+            loginAt: now,
+            lastActivityAt: now,
+            ipAddress: ctx.context.ip,
+            userAgent: ctx.headers?.get('user-agent') || null,
+            sessionToken: session.token,
+          });
 
           await setSessionCookie(
             ctx,
