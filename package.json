@@ -14,6 +14,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
+    "session:query": "tsx scripts/sessionActivityQueries.ts",
     "test": "echo \"No tests defined\" && exit 0"
   },
   "keywords": [
