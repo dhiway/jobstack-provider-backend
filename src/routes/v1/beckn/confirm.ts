@@ -1,9 +1,11 @@
 import { jobApplication, jobPosting } from '@db/schema/job';
 import { db } from '@src/db/setup';
+import { member, organization, user } from '@db/schema/auth';
 import ConfirmRequestSchema from '@validation/beckn/methods/confirm';
 import { and, eq } from 'drizzle-orm';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import z from 'zod/v4';
+import { notificationClient } from '@lib/notification/notification_client';
 
 type ConfirmRequestBody = z.infer<typeof ConfirmRequestSchema>;
 
@@ -66,6 +68,66 @@ export async function confirmJobApplication(
       error: 'Not Found',
       message: 'Draft application not found',
     });
+  }
+
+  // Send notification to organization members about new application
+  try {
+    const orgMembers = await db
+      .select({
+        email: user.email,
+        name: user.name,
+        phoneNumber: user.phoneNumber,
+      })
+      .from(member)
+      .innerJoin(user, eq(member.userId, user.id))
+      .where(eq(member.organizationId, posting.organizationId));
+
+    if (orgMembers.length > 0) {
+      const applicantName = updated[0].userName;
+      
+      for (const orgMember of orgMembers) {
+        // Send email notification
+        if (orgMember.email) {
+          await notificationClient.notify({
+            channel: 'email',
+            template_id: 'basic_email',
+            to: orgMember.email,
+            priority: 'realtime',
+            variables: {
+              fromName: posting.organizationName,
+              fromEmail: 'support@onest.network',
+              replyTo: 'support@onest.network',
+              subject: `New Application for ${posting.title}`,
+              html: `
+                <p>Hi ${orgMember.name},</p>
+                <p>A new candidate <strong>${applicantName}</strong> just applied for the <strong>${posting.title}</strong> job.</p>
+                <p>Best regards,<br/>Jobstack</p>
+              `,
+            },
+          });
+        }
+
+        // Send WhatsApp notification
+        if (orgMember.phoneNumber && process.env.SEND_WHATSAPP_NOTIFICATION === 'true') {
+          await notificationClient.notify({
+            channel: 'whatsapp',
+            template_id: 'other',
+            to: orgMember.phoneNumber,
+            priority: 'realtime',
+            variables: {
+              contentSid: process.env.TWILIO_CONTENT_SID_NEW_APPLICATION || '',
+              contentVariables: {
+                '1': posting.title,
+              },
+            },
+          });
+        }
+      }
+      request.log.info(`New application notification sent to ${orgMembers.length} organization members for job ${posting.id}`);
+    }
+  } catch (error: any) {
+    request.log.error(`Failed to send new application notification: ${error.message}`);
+    // Don't fail the request if notification fails
   }
 
   return reply.send({
