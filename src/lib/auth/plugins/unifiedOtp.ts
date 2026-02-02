@@ -99,6 +99,12 @@ export interface unifiedOtpOptions {
     user: UserWithPhoneNumber | null;
   }) => Promise<void>;
   /**
+   * Function to run after user creation
+   */
+  afterUserCreate: (data: {
+    user: UserWithPhoneNumber;
+  }) => Promise<Record<string, any>>;
+  /**
    * email domains to be set as admin by default
    * use with caution
    */
@@ -111,6 +117,7 @@ const generateOtp = () =>
 export const unifiedOtp = ({
   sendPhoneOtp,
   sendEmailOtp,
+  afterUserCreate,
   adminByDomain,
 }: unifiedOtpOptions): BetterAuthPlugin => ({
   id: 'unified-otp',
@@ -533,6 +540,7 @@ export const unifiedOtp = ({
         await redis?.delete(otpKey);
 
         let user: UserWithPhoneNumber | null = null;
+        let isNewUser = false;
 
         if (phoneNumber) {
           user = await ctx.context.adapter.findOne<UserWithPhoneNumber>({
@@ -579,6 +587,7 @@ export const unifiedOtp = ({
               banExpires: null,
             },
           });
+          isNewUser = true;
         }
 
         if (!user)
@@ -712,6 +721,12 @@ export const unifiedOtp = ({
           throw new APIError('SERVICE_UNAVAILABLE');
         }
 
+        // Only trigger afterUserCreate for new user signups, not for existing user logins
+        let afterUser: Record<string, any> | undefined;
+        if (isNewUser) {
+          afterUser = await afterUserCreate({ user: updatedUser });
+        }
+
         try {
           const session = await ctx.context.internalAdapter.createSession(
             user.id,
@@ -732,6 +747,7 @@ export const unifiedOtp = ({
             redirect: '',
             token: session.token,
             user: updatedUser,
+            ...(afterUser && { afterUserCreate: afterUser }),
           };
         } catch (error: any) {
           throw new APIError('SERVICE_UNAVAILABLE', error.message);
