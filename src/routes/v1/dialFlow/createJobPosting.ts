@@ -12,6 +12,7 @@ export const CreateJobPostingRequestSchema = z.object({
   orgId: z.string().length(32).or(z.uuid()).optional(),
   metadata: z.record(z.string(), z.any()).default({}),
   location: z.record(z.string(), z.any()).default({}),
+  type: z.string().optional(),
   phoneNumber: z.string(),
 });
 
@@ -33,7 +34,7 @@ const createJobPosting = async (
     });
   }
 
-  const { userId, title, metadata, orgId, location, phoneNumber } =
+  const { userId, title, metadata, orgId, location, phoneNumber, type } =
     request.body;
   let org = null;
 
@@ -53,10 +54,12 @@ const createJobPosting = async (
 
   // 3. If still not found, create new org
   if (!org) {
-    const jobProviderName = metadata?.basicInfo?.jobProviderName;
+    const orgNameFromMetadata =
+      metadata?.org_name ??
+      metadata?.basicInfo?.jobProviderName;
     const name =
-      typeof jobProviderName === 'string'
-        ? jobProviderName
+      typeof orgNameFromMetadata === 'string'
+        ? orgNameFromMetadata
         : `Org XYZ (${phoneNumber})`;
     const orgs = await db
       .insert(organization)
@@ -65,6 +68,7 @@ const createJobPosting = async (
         name: name.trim(),
         slug: crypto.randomUUID().slice(0, 8),
         createdAt: new Date(),
+        type: type,
         metadata: JSON.stringify({
           address: 'Online',
           gstNumber: '',
