@@ -10,7 +10,7 @@ const dialFlowRoutes: FastifyPluginAsync = async (fastify) => {
     url: '/verify-user',
     method: 'POST',
     preHandler: async (request, reply) => {
-      validateAPIKey(request, reply);
+      await validateAPIKey(request, reply);
     },
     handler: verifyUser,
   });
@@ -18,7 +18,7 @@ const dialFlowRoutes: FastifyPluginAsync = async (fastify) => {
     url: '/create-profile',
     method: 'POST',
     preHandler: async (request, reply) => {
-      validateAPIKey(request, reply);
+      await validateAPIKey(request, reply);
     },
     handler: createProfile,
   });
@@ -26,7 +26,7 @@ const dialFlowRoutes: FastifyPluginAsync = async (fastify) => {
     url: '/create-job-post',
     method: 'POST',
     preHandler: async (request, reply) => {
-      validateAPIKey(request, reply);
+      await validateAPIKey(request, reply);
     },
     handler: createJobPosting,
   });
@@ -34,7 +34,7 @@ const dialFlowRoutes: FastifyPluginAsync = async (fastify) => {
     url: '/org-details',
     method: 'GET',
     preHandler: async (request, reply) => {
-      validateAPIKey(request, reply);
+      await validateAPIKey(request, reply);
     },
     handler: getOrganizationDetailsByAgentId,
   });
