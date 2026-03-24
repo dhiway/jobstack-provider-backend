@@ -10,6 +10,7 @@ declare module 'fastify' {
       [key: string]: any;
     };
     permissions?: Record<string, string[]>;
+    sessionToken?: string;
   }
 }
 

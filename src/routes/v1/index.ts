@@ -3,6 +3,7 @@ import jobsProviderRoutes from './jobs/organization';
 import becknProviderRoutes from './beckn';
 import storageBucket from './gcp/buckets';
 import userProfile from './profile';
+import userRoutes from './user';
 import location from './profile/location';
 import contact from './profile/contact';
 import docsRoutes from './docs';
@@ -13,6 +14,7 @@ const v1Routes: FastifyPluginAsync = async (fastify) => {
   fastify.register(adminRoutes, { prefix: '/admin' });
   fastify.register(jobsProviderRoutes, { prefix: '/jobs/:organizationId' });
   fastify.register(userProfile, { prefix: '/profile' });
+  fastify.register(userRoutes, { prefix: '/me' });
   fastify.register(location, { prefix: '/location' });
   fastify.register(contact, { prefix: '/contact' });
   fastify.register(becknProviderRoutes, { prefix: '/beckn' });
