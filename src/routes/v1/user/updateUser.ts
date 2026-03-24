@@ -124,16 +124,46 @@ export async function updateUser(
     throw err;
   }
 
-  // Evict the better-auth Redis session cache so the next getSession call
-  // re-fetches the user row and returns the updated email/phoneNumber.
-  if (request.sessionToken) {
-    await redis.del(request.sessionToken).catch((err) => {
-      console.error('Failed to evict session cache:', err);
-    });
+  // Update the session data in Redis so subsequent getSession calls return
+  // fresh user data without logging the user out.
+  // (better-auth uses secondaryStorage as the sole session store when configured,
+  //  so deleting the key would invalidate the session entirely.)
+  const sessionToken = request.sessionToken;
+  if (sessionToken) {
+    await (async () => {
+      try {
+        const raw = await redis.get(sessionToken);
+        if (raw) {
+          const sessionData = JSON.parse(raw);
+          if (body.name !== undefined) sessionData.user.name = body.name;
+          if (body.email !== undefined) {
+            sessionData.user.email = body.email;
+            if (existing.email !== body.email)
+              sessionData.user.emailVerified = false;
+          }
+          if (body.phoneNumber !== undefined) {
+            sessionData.user.phoneNumber = body.phoneNumber;
+            if (existing.phoneNumber !== body.phoneNumber)
+              sessionData.user.phoneNumberVerified = false;
+          }
+          sessionData.user.updatedAt = new Date().toISOString();
+          const ttl = await redis.ttl(sessionToken);
+          if (ttl > 0) {
+            await redis.set(sessionToken, JSON.stringify(sessionData), 'EX', ttl);
+          } else {
+            await redis.set(sessionToken, JSON.stringify(sessionData));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to update session cache in Redis:', err);
+      }
+    })();
   }
 
-  // Clear the sessionData cookie cache so the next get-session call
-  // falls through to Redis/DB and returns fresh user data.
+  // Clear the session_data cookie cache so the next get-session call reads
+  // the updated session from Redis instead of returning stale cookie data.
+  // Must match all attributes used when the cookie was set (including
+  // `partitioned: true` in production) or the browser will not clear it.
   const isProd = process.env.NODE_ENV === 'production';
   const sessionDataCookieName = isProd
     ? '__Secure-better-auth.session_data'
@@ -144,6 +174,7 @@ export async function updateUser(
     httpOnly: true,
     sameSite: isProd ? 'none' : 'lax',
     secure: isProd,
+    ...(isProd ? { partitioned: true } : {}),
   };
 
   if (isProd && process.env.SERVER_ENDPOINT) {
