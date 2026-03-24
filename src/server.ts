@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import cookie from '@fastify/cookie';
 import {
   createJsonSchemaTransform,
   serializerCompiler,
@@ -43,7 +44,7 @@ async function main() {
       }
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE','PATCH', 'OPTIONS'],
   });
 
   // Swagger + Scalar Setup
@@ -77,6 +78,9 @@ async function main() {
   await app.register(import('@scalar/fastify-api-reference'), {
     routePrefix: '/api/v1/reference',
   });
+
+  // Cookie plugin for Set-Cookie/Cookie parsing
+  await app.register(cookie);
 
   // formDataPlugin
   await app.register(formDataPlugin);

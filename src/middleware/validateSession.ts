@@ -29,6 +29,7 @@ export async function authMiddleware(
   });
 
   request.user = session.user;
+  request.sessionToken = session.session.token;
 
   // Track user session activity in Redis for last seen tracking
   // This is done asynchronously to not block the request
