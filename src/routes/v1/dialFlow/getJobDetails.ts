@@ -1,14 +1,17 @@
 import { db } from '@db/setup';
-import { organization, jobPosting } from '@db/schema';
+import { organization, jobPosting, jobStatusEnum } from '@db/schema';
 import { eq, sql, and } from 'drizzle-orm';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod/v4';
+
+const JobStatusEnum = z.enum(['draft', 'open', 'closed', 'archived']);
 
 export const GetJobDetailsRequestSchema = z.object({
   userId: z.string(),
   orgId: z.string().length(32).or(z.uuid()).optional(),
   phoneNumber: z.string(),
   jobId: z.string().optional(),
+  status: JobStatusEnum.optional(),
 });
 
 type GetJobDetailsRequestInput = z.infer<
@@ -29,7 +32,7 @@ const getJobDetails = async (
     });
   }
 
-  const { userId, phoneNumber, orgId, jobId } = request.query;
+  const { userId, phoneNumber, orgId, jobId, status } = request.query;
 
   let org = null;
 
@@ -86,6 +89,15 @@ const getJobDetails = async (
       });
     }
 
+    if (status && existingJob.status !== status) {
+      return reply.status(404).send({
+        statusCode: 404,
+        code: 'JOB_STATUS_MISMATCH',
+        error: 'Not Found',
+        message: 'Job posting does not have the requested status',
+      });
+    }
+
     return reply.status(200).send({
       statusCode: 200,
       message: 'Job Details',
@@ -96,15 +108,19 @@ const getJobDetails = async (
     });
   }
 
+  const conditions: any[] = [
+    eq(jobPosting.createdBy, userId),
+    eq(jobPosting.organizationId, org.id),
+  ];
+
+  if (status) {
+    conditions.push(eq(jobPosting.status, status));
+  }
+
   const jobs = await db
     .select()
     .from(jobPosting)
-    .where(
-      and(
-        eq(jobPosting.createdBy, userId),
-        eq(jobPosting.organizationId, org.id)
-      )
-    );
+    .where(and(...conditions));
 
   return reply.status(200).send({
     statusCode: 200,
