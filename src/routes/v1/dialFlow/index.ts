@@ -6,6 +6,8 @@ import createJobPosting from './createJobPosting';
 import updateJobPosting from './updateJobPosting';
 import getJobDetails from './getJobDetails';
 import { getOrganizationDetailsByAgentId } from './getOrganizationDetailsByAgentId';
+import { fetchJobApplications } from './fetchJobApplications';
+import { getOrgDetailsByPhone } from './getOrgDetailsByPhone';
 
 const dialFlowRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.route({
@@ -55,6 +57,22 @@ const dialFlowRoutes: FastifyPluginAsync = async (fastify) => {
       await validateAPIKey(request, reply);
     },
     handler: getOrganizationDetailsByAgentId,
+  });
+  fastify.route({
+    url: '/job-applications',
+    method: 'GET',
+    preHandler: async (request, reply) => {
+      await validateAPIKey(request, reply);
+    },
+    handler: fetchJobApplications,
+  });
+  fastify.route({
+    url: '/org-details-by-phone',
+    method: 'GET',
+    preHandler: async (request, reply) => {
+      await validateAPIKey(request, reply);
+    },
+    handler: getOrgDetailsByPhone,
   });
 };
 
