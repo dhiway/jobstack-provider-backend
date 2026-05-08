@@ -9,6 +9,7 @@ import contact from './profile/contact';
 import docsRoutes from './docs';
 import adminRoutes from './admin';
 import dialFlowRoutes from './dialFlow';
+import externalRoutes from './external';
 
 const v1Routes: FastifyPluginAsync = async (fastify) => {
   fastify.register(adminRoutes, { prefix: '/admin' });
@@ -20,6 +21,7 @@ const v1Routes: FastifyPluginAsync = async (fastify) => {
   fastify.register(becknProviderRoutes, { prefix: '/beckn' });
   fastify.register(storageBucket, { prefix: '/storage' });
   fastify.register(dialFlowRoutes, { prefix: '/dial-flow' });
+  fastify.register(externalRoutes, { prefix: '/external' });
   fastify.register(docsRoutes, { prefix: '/docs' });
 };
 

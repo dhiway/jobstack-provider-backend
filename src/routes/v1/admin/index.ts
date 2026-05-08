@@ -35,7 +35,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     },
     preHandler: async (request, reply) => {
       request.permissions = { view: ['organization'] };
-      validateAPIKey(request, reply);
+      return await validateAPIKey(request, reply);
     },
     handler: getOrganizationDetailsBySlug,
   });
